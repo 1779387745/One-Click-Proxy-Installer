@@ -85,8 +85,7 @@ install_packages() {
     echo -e "\033[36m开始安装下载的包...\033[0m"
     sudo dpkg -i /tmp/linux-*.deb
     sudo update-grub
-    echo -e "\033[36m安装完成，即将重启系统加载新内核。\033[0m"
-    reboot
+    echo -e "\033[36m安装完成，请手动重启系统以加载新内核（本脚本已禁用自动重启，确保安全）。\033[0m"
 }
 
 # 函数：安装指定版本
@@ -151,7 +150,7 @@ print_separator
 # 提示用户选择操作
 echo -e "\033[1;33m╭( ･ㅂ･)و ✧ 你可以选择以下操作哦：\033[0m"
 echo -e "\033[33m 1. ️ 安装或更新 BBR v3\033[0m"
-echo -e "\033[33m 2. 🔝 指定版本安装\033[0m"
+echo -e "\033[33m 2. （已禁用）指定版本安装【危险功能已移除】\033[0m"
 echo -e "\033[33m 3. 检查是否为 BBR v3\033[0m"
 echo -e "\033[33m 4. ⚡ 使用 BBR + FQ 加速\033[0m"
 echo -e "\033[33m 5. ⚡ 使用 BBR + FQ_PIE 加速\033[0m"
@@ -173,10 +172,8 @@ case "$ACTION" in
         install_packages
         ;;
     2)
-        echo -e "\033[1;32m(｡･∀･)ﾉﾞ 您选择了安装指定版本的 BBR！\033[0m"
-        get_specific_version
-        sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
-        install_packages
+        echo -e "\033[1;31m(｡•́︿•̀｡) 指定版本安装功能已禁用，避免误操作导致服务器重启或不可用！\033[0m"
+        read -n 1 -s -r -p "按任意键返回..."
         ;;
     3)
         echo -e "\033[1;32m(｡･ω･｡) 检查是否为 BBR v3...\033[0m"
@@ -186,6 +183,7 @@ case "$ACTION" in
                 echo -e "\033[36m检测到 BBR 模块版本：\033[0m\033[1;32m$BBR_VERSION\033[0m"
             else
                 echo -e "\033[33m(￣﹃￣) 检测到 BBR 模块，但版本是：$BBR_VERSION，不是 v3！\033[0m"
+                read -n 1 -s -r -p "按任意键返回..."
                 exit 1
             fi
         fi
@@ -194,33 +192,40 @@ case "$ACTION" in
             echo -e "\033[36m当前 TCP 拥塞控制算法：\033[0m\033[1;32m$CURRENT_ALGO\033[0m"
         else
             echo -e "\033[31m(⊙﹏⊙) 当前算法不是 bbr，而是：$CURRENT_ALGO\033[0m"
+            read -n 1 -s -r -p "按任意键返回..."
             exit 1
         fi
         echo -e "\033[1;32mヽ(✿ﾟ▽ﾟ)ノ 检测完成，BBR v3 已正确安装并生效！\033[0m"
+        read -n 1 -s -r -p "按任意键返回..."
         ;;
     4)
         echo -e "\033[1;32m(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ 使用 BBR + FQ 加速！\033[0m"
         ALGO="bbr"
         QDISC="fq"
         ask_to_save
+        read -n 1 -s -r -p "按任意键返回..."
         ;;
     5)
         echo -e "\033[1;32m٩(•‿•)۶ 使用 BBR + FQ_PIE 加速！\033[0m"
         ALGO="bbr"
         QDISC="fq_pie"
         ask_to_save
+        read -n 1 -s -r -p "按任意键返回..."
         ;;
     6)
         echo -e "\033[1;32m(ﾉ≧∀≦)ﾉ 使用 BBR + CAKE 加速！\033[0m"
         ALGO="bbr"
         QDISC="cake"
         ask_to_save
+        read -n 1 -s -r -p "按任意键返回..."
         ;;
     7)
         echo -e "\033[1;32mヽ(・∀・)ノ 您选择了卸载 BBR 内核！\033[0m"
         sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
+        read -n 1 -s -r -p "按任意键返回..."
         ;;
     *)
         echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 0-7 之间的数字哦~\033[0m"
+        read -n 1 -s -r -p "按任意键返回..."
         ;;
 esac
