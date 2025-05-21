@@ -25,7 +25,7 @@ curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/mai
 **命令2. 再次运行可启动脚本，之后可快捷命令： `box`**
 
 ```bash
-sudo bash install.sh
+sudo bash lvhy.sh
 ```
 
 脚本将以 root 权限运行，并显示主菜单。
