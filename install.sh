@@ -193,7 +193,7 @@ case "$ACTION" in
         if [[ ! "$confirm_risk" =~ ^[Yy]$ ]]; then
             echo -e "\033[33m操作已取消。\033[0m"
             read -n 1 -s -r -p "按任意键返回..."
-            break
+            return
         fi
         echo -e "\033[1;32m٩(｡•́‿•̀｡)۶ 您选择了安装或更新 BBR v3！\033[0m"
         sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
@@ -257,7 +257,7 @@ case "$ACTION" in
         if [[ ! "$confirm_risk" =~ ^[Yy]$ ]]; then
             echo -e "\033[33m操作已取消。\033[0m"
             read -n 1 -s -r -p "按任意键返回..."
-            break
+            return
         fi
         echo -e "\033[1;32mヽ(・∀・)ノ 您选择了卸载 BBR 内核！\033[0m"
         sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
