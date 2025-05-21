@@ -16,7 +16,7 @@
 ```bash
 apt-get update && apt-get install -y curl
 ```
-**命令1. 下载脚本并启动：(脚本运行完可用快捷命令启动：`box`)**
+**命令1. 下载脚本并启动：(报错则更新系统或下载curl)**
 
 ```bash
 curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/lvhy.sh" -o lvhy.sh && curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/modify_node_params.sh" -o modify_node_params.sh && chmod +x lvhy.sh modify_node_params.sh && bash ./lvhy.sh
