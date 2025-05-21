@@ -16,10 +16,15 @@
 ```bash
 apt-get update && apt-get install -y curl
 ```
-**命令1. 下载脚本并启动：(报错则更新系统或下载curl)**
+**命令1. 下载脚本并启动：(报错则更新系统或下载curl)(安装命令不要去做一个收藏之后会有一个优化)**
 
 ```bash
-curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/lvhy.sh" -o lvhy.sh && curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/modify_node_params.sh" -o modify_node_params.sh && chmod +x lvhy.sh modify_node_params.sh && bash ./lvhy.sh
+curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/lvhy.sh" -o lvhy.sh &&
+curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/modify_node_params.sh" -o modify_node_params.sh &&
+curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/bbr_manage.sh" -o bbr_manage.sh &&
+curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/install.sh" -o install.sh &&
+chmod +x lvhy.sh modify_node_params.sh bbr_manage.sh install.sh &&
+bash ./lvhy.sh
 ```
 
 **命令2. 再次运行可启动脚本，之后可快捷命令： `box`**
