@@ -961,12 +961,11 @@ toolbox_menu() {
         echo "  5. BBR管理（简单）"
         echo "  6. 高级BBR管理（内核/加速/卸载）"
         echo "  7. 组件管理"
-        echo "  8. 一键开启BBR3"
-        echo "  9. 系统时区调整"
-        echo " 10. 切换优先IPv4/IPv6"
-        echo " 11. 修改Root密码"
-        echo " 12. 开启Root密码登录"
-        echo " 13. 重启服务器"
+        echo "  8. 系统时区调整"
+        echo "  9. 切换优先IPv4/IPv6"
+        echo " 10. 修改Root密码"
+        echo " 11. 开启Root密码登录"
+        echo " 12. 重启服务器"
         echo "  0. 返回主菜单"
         echo -e "${MAGENTA}${BOLD}========================================${NC}"
         read -p "请输入选项 [0-13]: " tb_choice
@@ -1109,20 +1108,6 @@ toolbox_menu() {
                 done
                 ;;
             8)
-                # 一键开启BBR3
-                echo -e "${CYAN}一键开启BBR3："
-                if uname -r | grep -qE '5\.|6\.'; then
-                    sudo modprobe tcp_bbr
-                    echo 'net.core.default_qdisc=fq' | sudo tee -a /etc/sysctl.conf
-                    echo 'net.ipv4.tcp_congestion_control=bbr' | sudo tee -a /etc/sysctl.conf
-                    sudo sysctl -p
-                    echo "BBR3已尝试开启（如内核支持）。"
-                else
-                    echo "当前内核版本不支持BBR3。"
-                fi
-                read -n 1 -s -r -p "按任意键返回工具箱..."
-                ;;
-            9)
                 # 系统时区调整
                 echo -e "${CYAN}请选择时区："
                 echo "  1. Asia/Shanghai (中国)"
@@ -1144,7 +1129,7 @@ toolbox_menu() {
                 esac
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            10)
+            9)
                 # 切换优先IPv4/IPv6
                 echo -e "${CYAN}请选择优先协议："
                 echo "  1. 优先IPv4"
@@ -1167,13 +1152,13 @@ toolbox_menu() {
                 esac
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            11)
+            10)
                 # 修改Root密码
                 echo -e "${CYAN}请输入新Root密码："
                 sudo passwd root
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            12)
+            11)
                 # 开启Root密码登录
                 sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
                 sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
@@ -1181,7 +1166,7 @@ toolbox_menu() {
                 echo "已开启Root密码登录（请确保已设置Root密码）。"
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            13)
+            12)
                 # 重启服务器
                 echo -e "${YELLOW}警告：即将重启服务器，是否继续？${NC}"
                 read -p "输入y确认重启，其他键取消: " reboot_confirm
