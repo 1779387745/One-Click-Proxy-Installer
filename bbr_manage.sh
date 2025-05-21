@@ -134,4 +134,7 @@ while true; do
             ;;
     esac
 
-done 
+done
+
+# 如果是被 source 调用，选0后自动 return 回主脚本
+return 2>/dev/null 
