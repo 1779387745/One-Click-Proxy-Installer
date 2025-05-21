@@ -27,7 +27,7 @@ CURRENT_ALGO=$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')
 CURRENT_QDISC=$(sysctl net.core.default_qdisc | awk '{print $3}')
 
 # sysctl 配置文件路径
-SYSCTL_CONF="/etc/sysctl.d/99-joeyblog.conf"
+SYSCTL_CONF="/etc/sysctl.d/99-zhongyuan.conf"
 
 # 函数：清理 sysctl.d 中的旧配置
 clean_sysctl_conf() {
@@ -56,7 +56,7 @@ ask_to_save() {
 # 函数：从 GitHub 获取最新版本并下载
 get_download_links() {
     echo -e "\033[36m正在从 GitHub 获取最新版本信息...\033[0m"
-    BASE_URL="https://api.github.com/repos/byJoey/Actions-bbr-v3/releases"
+    BASE_URL="https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/releases.json"
     RELEASE_DATA=$(curl -s "$BASE_URL")
 
     if [[ "$ARCH" == "aarch64" ]]; then
@@ -91,7 +91,7 @@ install_packages() {
 
 # 函数：安装指定版本
 get_specific_version() {
-    BASE_URL="https://api.github.com/repos/byJoey/Actions-bbr-v3/releases"
+    BASE_URL="https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/releases.json"
     RELEASE_DATA=$(curl -s "$BASE_URL")
 
     if [[ "$ARCH" == "aarch64" ]]; then
@@ -157,11 +157,15 @@ echo -e "\033[33m 4. ⚡ 使用 BBR + FQ 加速\033[0m"
 echo -e "\033[33m 5. ⚡ 使用 BBR + FQ_PIE 加速\033[0m"
 echo -e "\033[33m 6. ⚡ 使用 BBR + CAKE 加速\033[0m"
 echo -e "\033[33m 7. ️ 卸载\033[0m"
+echo -e "\033[33m 0. 返回主菜单\033[0m"
 print_separator
-echo -n -e "\033[36m请选择一个操作 (1-7) (｡･ω･｡): \033[0m"
+echo -n -e "\033[36m请选择一个操作 (0-7) (｡･ω･｡): \033[0m"
 read -r ACTION
 
 case "$ACTION" in
+    0)
+        exit 0
+        ;;
     1)
         echo -e "\033[1;32m٩(｡•́‿•̀｡)۶ 您选择了安装或更新 BBR v3！\033[0m"
         sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
@@ -217,6 +221,6 @@ case "$ACTION" in
         sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
         ;;
     *)
-        echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 1-7 之间的数字哦~\033[0m"
+        echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 0-7 之间的数字哦~\033[0m"
         ;;
 esac
