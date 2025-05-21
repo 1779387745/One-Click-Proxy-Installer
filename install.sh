@@ -56,7 +56,7 @@ ask_to_save() {
 # 函数：从 GitHub 获取最新版本并下载
 get_download_links() {
     echo -e "\033[36m正在从 GitHub 获取最新版本信息...\033[0m"
-    BASE_URL="https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/releases.json"
+    BASE_URL="https://api.github.com/repos/byJoey/Actions-bbr-v3/releases"
     RELEASE_DATA=$(curl -s "$BASE_URL")
 
     if [[ "$ARCH" == "aarch64" ]]; then
@@ -91,7 +91,7 @@ install_packages() {
 
 # 函数：安装指定版本
 get_specific_version() {
-    BASE_URL="https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/releases.json"
+    BASE_URL="https://api.github.com/repos/byJoey/Actions-bbr-v3/releases"
     RELEASE_DATA=$(curl -s "$BASE_URL")
 
     if [[ "$ARCH" == "aarch64" ]]; then
