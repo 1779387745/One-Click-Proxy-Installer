@@ -958,17 +958,18 @@ toolbox_menu() {
         echo "  2. 开发所有端口 (一键放行0-65535，风险自负)"
         echo "  3. 本机信息"
         echo "  4. DNS优化（国内/国外分流）"
-        echo "  5. BBR管理"
-        echo "  6. 组件管理"
-        echo "  7. 一键开启BBR3"
-        echo "  8. 系统时区调整"
-        echo "  9. 切换优先IPv4/IPv6"
-        echo " 10. 修改Root密码"
-        echo " 11. 开启Root密码登录"
-        echo " 12. 重启服务器"
+        echo "  5. BBR管理（简单）"
+        echo "  6. 高级BBR管理（内核/加速/卸载）"
+        echo "  7. 组件管理"
+        echo "  8. 一键开启BBR3"
+        echo "  9. 系统时区调整"
+        echo " 10. 切换优先IPv4/IPv6"
+        echo " 11. 修改Root密码"
+        echo " 12. 开启Root密码登录"
+        echo " 13. 重启服务器"
         echo "  0. 返回主菜单"
         echo -e "${MAGENTA}${BOLD}========================================${NC}"
-        read -p "请输入选项 [0-12]: " tb_choice
+        read -p "请输入选项 [0-13]: " tb_choice
         case "$tb_choice" in
             1)
                 install_singbox_core && manage_singbox "restart"
@@ -1068,35 +1069,12 @@ toolbox_menu() {
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
             5)
-                # BBR管理
-                echo -e "${CYAN}BBR管理："
-                bbr_status=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q bbr && echo 已开启 || echo 未开启)
-                echo -e "当前BBR状态：${GREEN}$bbr_status${NC}"
-                echo "  1. 开启BBR"
-                echo "  2. 关闭BBR"
-                echo "  0. 返回"
-                read -p "请输入选项 [0-2]: " bbr_opt
-                case "$bbr_opt" in
-                    1)
-                        sudo modprobe tcp_bbr
-                        echo 'net.core.default_qdisc=fq' | sudo tee -a /etc/sysctl.conf
-                        echo 'net.ipv4.tcp_congestion_control=bbr' | sudo tee -a /etc/sysctl.conf
-                        sudo sysctl -p
-                        echo "BBR已开启。"
-                        ;;
-                    2)
-                        sudo sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
-                        sudo sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
-                        sudo sysctl -p
-                        echo "BBR已关闭。"
-                        ;;
-                    *)
-                        echo "操作已取消。"
-                        ;;
-                esac
-                read -n 1 -s -r -p "按任意键返回工具箱..."
+                bash ./bbr_manage.sh
                 ;;
             6)
+                bash ./install.sh
+                ;;
+            7)
                 # 组件管理
                 while true; do
                     clear
@@ -1130,7 +1108,7 @@ toolbox_menu() {
                     read -n 1 -s -r -p "按任意键返回组件管理..."
                 done
                 ;;
-            7)
+            8)
                 # 一键开启BBR3
                 echo -e "${CYAN}一键开启BBR3："
                 if uname -r | grep -qE '5\.|6\.'; then
@@ -1144,7 +1122,7 @@ toolbox_menu() {
                 fi
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            8)
+            9)
                 # 系统时区调整
                 echo -e "${CYAN}请选择时区："
                 echo "  1. Asia/Shanghai (中国)"
@@ -1166,7 +1144,7 @@ toolbox_menu() {
                 esac
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            9)
+            10)
                 # 切换优先IPv4/IPv6
                 echo -e "${CYAN}请选择优先协议："
                 echo "  1. 优先IPv4"
@@ -1189,13 +1167,13 @@ toolbox_menu() {
                 esac
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            10)
+            11)
                 # 修改Root密码
                 echo -e "${CYAN}请输入新Root密码："
                 sudo passwd root
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            11)
+            12)
                 # 开启Root密码登录
                 sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
                 sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
@@ -1203,7 +1181,7 @@ toolbox_menu() {
                 echo "已开启Root密码登录（请确保已设置Root密码）。"
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
-            12)
+            13)
                 # 重启服务器
                 echo -e "${YELLOW}警告：即将重启服务器，是否继续？${NC}"
                 read -p "输入y确认重启，其他键取消: " reboot_confirm
@@ -1218,7 +1196,7 @@ toolbox_menu() {
                 break
                 ;;
             *)
-                echo "无效选项，请输入 0-12。"
+                echo "无效选项，请输入 0-13。"
                 sleep 1
                 ;;
         esac
