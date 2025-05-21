@@ -16,10 +16,10 @@
 ```bash
 apt-get update && apt-get install -y curl
 ```
-**命令1. 下载脚本到服务器：(此命令没有输出提示，运行完继续下一条命令！)**
+**命令1. 下载脚本并启动：(脚本运行完可用快捷命令启动：`box`)**
 
 ```bash
-curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/install.sh" -o install.sh ; chmod +x install.sh
+curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/lvhy.sh" -o lvhy.sh && curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/modify_node_params.sh" -o modify_node_params.sh && chmod +x lvhy.sh modify_node_params.sh && bash ./lvhy.sh
 ```
 
 **命令2. 再次运行可启动脚本，之后可快捷命令： `box`**
