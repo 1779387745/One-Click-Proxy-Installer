@@ -150,15 +150,14 @@ print_separator
 # 提示用户选择操作
 echo -e "\033[1;33m╭( ･ㅂ･)و ✧ 你可以选择以下操作哦：\033[0m"
 echo -e "\033[33m 1. ️ 安装或更新 BBR v3\033[0m"
-echo -e "\033[33m 2. （已禁用）指定版本安装【危险功能已移除】\033[0m"
-echo -e "\033[33m 3. 检查是否为 BBR v3\033[0m"
-echo -e "\033[33m 4. ⚡ 使用 BBR + FQ 加速\033[0m"
-echo -e "\033[33m 5. ⚡ 使用 BBR + FQ_PIE 加速\033[0m"
-echo -e "\033[33m 6. ⚡ 使用 BBR + CAKE 加速\033[0m"
-echo -e "\033[33m 7. ️ 卸载\033[0m"
+echo -e "\033[33m 2. 检查是否为 BBR v3\033[0m"
+echo -e "\033[33m 3. ⚡ 使用 BBR + FQ 加速\033[0m"
+echo -e "\033[33m 4. ⚡ 使用 BBR + FQ_PIE 加速\033[0m"
+echo -e "\033[33m 5. ⚡ 使用 BBR + CAKE 加速\033[0m"
+echo -e "\033[33m 6. ️ 卸载\033[0m"
 echo -e "\033[33m 0. 返回主菜单\033[0m"
 print_separator
-echo -n -e "\033[36m请选择一个操作 (0-7) (｡･ω･｡): \033[0m"
+echo -n -e "\033[36m请选择一个操作 (0-6) (｡･ω･｡): \033[0m"
 read -r ACTION
 
 case "$ACTION" in
@@ -172,10 +171,6 @@ case "$ACTION" in
         install_packages
         ;;
     2)
-        echo -e "\033[1;31m(｡•́︿•̀｡) 指定版本安装功能已禁用，避免误操作导致服务器重启或不可用！\033[0m"
-        read -n 1 -s -r -p "按任意键返回..."
-        ;;
-    3)
         echo -e "\033[1;32m(｡･ω･｡) 检查是否为 BBR v3...\033[0m"
         if modinfo tcp_bbr &> /dev/null; then
             BBR_VERSION=$(modinfo tcp_bbr | awk '/^version:/ {print $2}')
@@ -198,34 +193,34 @@ case "$ACTION" in
         echo -e "\033[1;32mヽ(✿ﾟ▽ﾟ)ノ 检测完成，BBR v3 已正确安装并生效！\033[0m"
         read -n 1 -s -r -p "按任意键返回..."
         ;;
-    4)
+    3)
         echo -e "\033[1;32m(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ 使用 BBR + FQ 加速！\033[0m"
         ALGO="bbr"
         QDISC="fq"
         ask_to_save
         read -n 1 -s -r -p "按任意键返回..."
         ;;
-    5)
+    4)
         echo -e "\033[1;32m٩(•‿•)۶ 使用 BBR + FQ_PIE 加速！\033[0m"
         ALGO="bbr"
         QDISC="fq_pie"
         ask_to_save
         read -n 1 -s -r -p "按任意键返回..."
         ;;
-    6)
+    5)
         echo -e "\033[1;32m(ﾉ≧∀≦)ﾉ 使用 BBR + CAKE 加速！\033[0m"
         ALGO="bbr"
         QDISC="cake"
         ask_to_save
         read -n 1 -s -r -p "按任意键返回..."
         ;;
-    7)
+    6)
         echo -e "\033[1;32mヽ(・∀・)ノ 您选择了卸载 BBR 内核！\033[0m"
         sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
         read -n 1 -s -r -p "按任意键返回..."
         ;;
     *)
-        echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 0-7 之间的数字哦~\033[0m"
+        echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 0-6 之间的数字哦~\033[0m"
         read -n 1 -s -r -p "按任意键返回..."
         ;;
 esac
