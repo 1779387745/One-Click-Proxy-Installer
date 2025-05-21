@@ -154,118 +154,123 @@ print_separator() {
     echo -e "\033[34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 }
 
-# 欢迎信息与作者信息展示
-print_separator
-echo -e "\033[1;35m(☆ω☆)✧*｡ 欢迎来到 BBR 管理脚本世界哒！ ✧*｡(☆ω☆)\033[0m"
-print_separator
-echo -e "\033[36m当前 TCP 拥塞控制算法：\033[0m\033[1;32m$CURRENT_ALGO\033[0m"
-echo -e "\033[36m当前队列管理算法：\033[0m\033[1;32m$CURRENT_QDISC\033[0m"
-print_separator
-echo -e "\033[1;33m作者：zhong yuan\033[0m"
-print_separator
-
-# 提示用户选择操作
-echo -e "\033[1;33m╭( ･ㅂ･)و ✧ 你可以选择以下操作哦：\033[0m"
-echo -e "\033[33m 1. ️ 安装或更新 BBR v3\033[0m"
-echo -e "\033[33m 2. 检查是否为 BBR v3\033[0m"
-echo -e "\033[33m 3. ⚡ 使用 BBR + FQ 加速\033[0m"
-echo -e "\033[33m 4. ⚡ 使用 BBR + FQ_PIE 加速\033[0m"
-echo -e "\033[33m 5. ⚡ 使用 BBR + CAKE 加速\033[0m"
-echo -e "\033[33m 6. ️ 卸载\033[0m"
-echo -e "\033[33m 0. 返回主菜单\033[0m"
-print_separator
-echo -n -e "\033[36m请选择一个操作 (0-6) (｡･ω･｡): \033[0m"
-read -r ACTION
-
-case "$ACTION" in
-    0)
-        exit 0
-        ;;
-    1)
-        echo -e "\033[1;31m【高风险操作警告】\033[0m"
-        echo -e "\033[33m您即将安装或更新 BBR v3 内核，这可能导致：\033[0m"
-        echo -e "\033[33m- 系统内核被替换，部分 VPS/云服务器可能无法启动\033[0m"
-        echo -e "\033[33m- 网络异常、丢失 SSH 连接、甚至系统无法启动\033[0m"
-        echo -e "\033[33m- 请确保已备份重要数据，并知晓如何通过控制台救援\033[0m"
-        echo -e "\033[33m- 如为生产环境/重要服务器，强烈建议不要随意更换内核！\033[0m"
-        echo -n -e "\033[1;31m是否继续？(y/N): \033[0m"
-        read -r confirm_risk
-        if [[ ! "$confirm_risk" =~ ^[Yy]$ ]]; then
-            echo -e "\033[33m操作已取消。\033[0m"
-            read -n 1 -s -r -p "按任意键返回..."
+while true; do
+    print_separator
+    echo -e "\033[1;35m(☆ω☆)✧*｡ 欢迎来到 BBR 管理脚本世界哒！ ✧*｡(☆ω☆)\033[0m"
+    print_separator
+    echo -e "\033[36m当前 TCP 拥塞控制算法：\033[0m\033[1;32m$CURRENT_ALGO\033[0m"
+    echo -e "\033[36m当前队列管理算法：\033[0m\033[1;32m$CURRENT_QDISC\033[0m"
+    print_separator
+    echo -e "\033[1;33m作者：zhong yuan\033[0m"
+    print_separator
+    echo -e "\033[1;33m╭( ･ㅂ･)و ✧ 你可以选择以下操作哦：\033[0m"
+    echo -e "\033[33m 1. ️ 安装或更新 BBR v3\033[0m"
+    echo -e "\033[33m 2. 检查是否为 BBR v3\033[0m"
+    echo -e "\033[33m 3. ⚡ 使用 BBR + FQ 加速\033[0m"
+    echo -e "\033[33m 4. ⚡ 使用 BBR + FQ_PIE 加速\033[0m"
+    echo -e "\033[33m 5. ⚡ 使用 BBR + CAKE 加速\033[0m"
+    echo -e "\033[33m 6. ️ 卸载\033[0m"
+    echo -e "\033[33m 0. 返回主菜单\033[0m"
+    print_separator
+    echo -n -e "\033[36m请选择一个操作 (0-6) (｡･ω･｡): \033[0m"
+    read -r ACTION
+    case "$ACTION" in
+        0)
             return
-        fi
-        echo -e "\033[1;32m٩(｡•́‿•̀｡)۶ 您选择了安装或更新 BBR v3！\033[0m"
-        sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
-        get_download_links
-        install_packages
-        read -n 1 -s -r -p "按任意键返回..."
-        ;;
-    2)
-        echo -e "\033[1;32m(｡･ω･｡) 检查是否为 BBR v3...\033[0m"
-        if modinfo tcp_bbr &> /dev/null; then
-            BBR_VERSION=$(modinfo tcp_bbr | awk '/^version:/ {print $2}')
-            if [[ "$BBR_VERSION" == "3" ]]; then
-                echo -e "\033[36m检测到 BBR 模块版本：\033[0m\033[1;32m$BBR_VERSION\033[0m"
-            else
-                echo -e "\033[33m(￣﹃￣) 检测到 BBR 模块，但版本是：$BBR_VERSION，不是 v3！\033[0m"
+            ;;
+        1)
+            echo -e "\033[1;31m【高风险操作警告】\033[0m"
+            echo -e "\033[33m您即将安装或更新 BBR v3 内核，这可能导致：\033[0m"
+            echo -e "\033[33m- 系统内核被替换，部分 VPS/云服务器可能无法启动\033[0m"
+            echo -e "\033[33m- 网络异常、丢失 SSH 连接、甚至系统无法启动\033[0m"
+            echo -e "\033[33m- 请确保已备份重要数据，并知晓如何通过控制台救援\033[0m"
+            echo -e "\033[33m- 如为生产环境/重要服务器，强烈建议不要随意更换内核！\033[0m"
+            echo -n -e "\033[1;31m是否继续？(y/N): \033[0m"
+            read -r confirm_risk
+            if [[ ! "$confirm_risk" =~ ^[Yy]$ ]]; then
+                echo -e "\033[33m操作已取消。\033[0m"
                 read -n 1 -s -r -p "按任意键返回..."
-                exit 1
+                continue
             fi
-        fi
-        CURRENT_ALGO=$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')
-        if [[ "$CURRENT_ALGO" == "bbr" ]]; then
-            echo -e "\033[36m当前 TCP 拥塞控制算法：\033[0m\033[1;32m$CURRENT_ALGO\033[0m"
-        else
-            echo -e "\033[31m(⊙﹏⊙) 当前算法不是 bbr，而是：$CURRENT_ALGO\033[0m"
+            echo -e "\033[1;32m٩(｡•́‿•̀｡)۶ 您选择了安装或更新 BBR v3！\033[0m"
+            sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
+            get_download_links
+            install_packages
             read -n 1 -s -r -p "按任意键返回..."
-            exit 1
-        fi
-        echo -e "\033[1;32mヽ(✿ﾟ▽ﾟ)ノ 检测完成，BBR v3 已正确安装并生效！\033[0m"
-        read -n 1 -s -r -p "按任意键返回..."
-        ;;
-    3)
-        echo -e "\033[1;32m(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ 使用 BBR + FQ 加速！\033[0m"
-        ALGO="bbr"
-        QDISC="fq"
-        ask_to_save
-        read -n 1 -s -r -p "按任意键返回..."
-        ;;
-    4)
-        echo -e "\033[1;32m٩(•‿•)۶ 使用 BBR + FQ_PIE 加速！\033[0m"
-        ALGO="bbr"
-        QDISC="fq_pie"
-        ask_to_save
-        read -n 1 -s -r -p "按任意键返回..."
-        ;;
-    5)
-        echo -e "\033[1;32m(ﾉ≧∀≦)ﾉ 使用 BBR + CAKE 加速！\033[0m"
-        ALGO="bbr"
-        QDISC="cake"
-        ask_to_save
-        read -n 1 -s -r -p "按任意键返回..."
-        ;;
-    6)
-        echo -e "\033[1;31m【高风险操作警告】\033[0m"
-        echo -e "\033[33m您即将卸载 BBR 内核，这可能导致：\033[0m"
-        echo -e "\033[33m- 系统内核被移除，若无其他可用内核，系统将无法启动\033[0m"
-        echo -e "\033[33m- 网络异常、丢失 SSH 连接、甚至系统无法启动\033[0m"
-        echo -e "\033[33m- 请确保已备份重要数据，并知晓如何通过控制台救援\033[0m"
-        echo -e "\033[33m- 如为生产环境/重要服务器，强烈建议不要随意卸载内核！\033[0m"
-        echo -n -e "\033[1;31m是否继续？(y/N): \033[0m"
-        read -r confirm_risk
-        if [[ ! "$confirm_risk" =~ ^[Yy]$ ]]; then
-            echo -e "\033[33m操作已取消。\033[0m"
+            continue
+            ;;
+        2)
+            echo -e "\033[1;32m(｡･ω･｡) 检查是否为 BBR v3...\033[0m"
+            if modinfo tcp_bbr &> /dev/null; then
+                BBR_VERSION=$(modinfo tcp_bbr | awk '/^version:/ {print $2}')
+                if [[ "$BBR_VERSION" == "3" ]]; then
+                    echo -e "\033[36m检测到 BBR 模块版本：\033[0m\033[1;32m$BBR_VERSION\033[0m"
+                else
+                    echo -e "\033[33m(￣﹃￣) 检测到 BBR 模块，但版本是：$BBR_VERSION，不是 v3！\033[0m"
+                    read -n 1 -s -r -p "按任意键返回..."
+                    continue
+                fi
+            fi
+            CURRENT_ALGO=$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')
+            if [[ "$CURRENT_ALGO" == "bbr" ]]; then
+                echo -e "\033[36m当前 TCP 拥塞控制算法：\033[0m\033[1;32m$CURRENT_ALGO\033[0m"
+            else
+                echo -e "\033[31m(⊙﹏⊙) 当前算法不是 bbr，而是：$CURRENT_ALGO\033[0m"
+                read -n 1 -s -r -p "按任意键返回..."
+                continue
+            fi
+            echo -e "\033[1;32mヽ(✿ﾟ▽ﾟ)ノ 检测完成，BBR v3 已正确安装并生效！\033[0m"
             read -n 1 -s -r -p "按任意键返回..."
-            return
-        fi
-        echo -e "\033[1;32mヽ(・∀・)ノ 您选择了卸载 BBR 内核！\033[0m"
-        sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
-        echo -e "\033[33m如需重启服务器，请手动输入 \033[1;32mreboot\033[0m\033[33m 命令！\033[0m"
-        read -n 1 -s -r -p "按任意键返回..."
-        ;;
-    *)
-        echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 0-6 之间的数字哦~\033[0m"
-        read -n 1 -s -r -p "按任意键返回..."
-        ;;
-esac
+            continue
+            ;;
+        3)
+            echo -e "\033[1;32m(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ 使用 BBR + FQ 加速！\033[0m"
+            ALGO="bbr"
+            QDISC="fq"
+            ask_to_save
+            read -n 1 -s -r -p "按任意键返回..."
+            continue
+            ;;
+        4)
+            echo -e "\033[1;32m٩(•‿•)۶ 使用 BBR + FQ_PIE 加速！\033[0m"
+            ALGO="bbr"
+            QDISC="fq_pie"
+            ask_to_save
+            read -n 1 -s -r -p "按任意键返回..."
+            continue
+            ;;
+        5)
+            echo -e "\033[1;32m(ﾉ≧∀≦)ﾉ 使用 BBR + CAKE 加速！\033[0m"
+            ALGO="bbr"
+            QDISC="cake"
+            ask_to_save
+            read -n 1 -s -r -p "按任意键返回..."
+            continue
+            ;;
+        6)
+            echo -e "\033[1;31m【高风险操作警告】\033[0m"
+            echo -e "\033[33m您即将卸载 BBR 内核，这可能导致：\033[0m"
+            echo -e "\033[33m- 系统内核被移除，若无其他可用内核，系统将无法启动\033[0m"
+            echo -e "\033[33m- 网络异常、丢失 SSH 连接、甚至系统无法启动\033[0m"
+            echo -e "\033[33m- 请确保已备份重要数据，并知晓如何通过控制台救援\033[0m"
+            echo -e "\033[33m- 如为生产环境/重要服务器，强烈建议不要随意卸载内核！\033[0m"
+            echo -n -e "\033[1;31m是否继续？(y/N): \033[0m"
+            read -r confirm_risk
+            if [[ ! "$confirm_risk" =~ ^[Yy]$ ]]; then
+                echo -e "\033[33m操作已取消。\033[0m"
+                read -n 1 -s -r -p "按任意键返回..."
+                continue
+            fi
+            echo -e "\033[1;32mヽ(・∀・)ノ 您选择了卸载 BBR 内核！\033[0m"
+            sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
+            echo -e "\033[33m如需重启服务器，请手动输入 \033[1;32mreboot\033[0m\033[33m 命令！\033[0m"
+            read -n 1 -s -r -p "按任意键返回..."
+            continue
+            ;;
+        *)
+            echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 0-6 之间的数字哦~\033[0m"
+            read -n 1 -s -r -p "按任意键返回..."
+            continue
+            ;;
+    esac
+done
