@@ -8,12 +8,16 @@ fi
 
 # 检查并安装必要的依赖，包括 jq 用于解析 JSON
 REQUIRED_CMDS=("curl" "wget" "dpkg" "awk" "sed" "sysctl" "update-grub" "jq")
-for cmd in "${REQUIRED_CMDS[@]}"; do
-    if ! command -v $cmd &> /dev/null; then
-        echo -e "\033[31m缺少依赖：$cmd，正在安装...\033[0m"
-        sudo apt-get update && sudo apt-get install -y $cmd
-    fi
-done
+DEPS_MARKER="/tmp/.bbr_deps_installed"
+if [ ! -f "$DEPS_MARKER" ]; then
+    for cmd in "${REQUIRED_CMDS[@]}"; do
+        if ! command -v $cmd &> /dev/null; then
+            echo -e "\033[31m缺少依赖：$cmd，正在安装...\033[0m"
+            sudo apt-get update && sudo apt-get install -y $cmd
+        fi
+    done
+    touch "$DEPS_MARKER"
+fi
 
 # 检测系统架构
 ARCH=$(uname -m)
@@ -43,6 +47,17 @@ ask_to_save() {
     echo -n -e "\033[36m(｡♥‿♥｡) 要将这些配置永久保存到 $SYSCTL_CONF 吗？(y/n): \033[0m"
     read -r SAVE
     if [[ "$SAVE" == "y" || "$SAVE" == "Y" ]]; then
+        echo -e "\033[1;31m【高风险操作警告】\033[0m"
+        echo -e "\033[33m您即将永久修改系统网络参数，可能导致：\033[0m"
+        echo -e "\033[33m- 网络异常、丢失 SSH 连接\033[0m"
+        echo -e "\033[33m- 系统重启后参数生效，若配置有误可能无法联网\033[0m"
+        echo -e "\033[33m- 如为生产环境/重要服务器，建议谨慎操作！\033[0m"
+        echo -n -e "\033[1;31m是否继续永久保存？(y/N): \033[0m"
+        read -r confirm_save
+        if [[ ! "$confirm_save" =~ ^[Yy]$ ]]; then
+            echo -e "\033[33m未永久保存，操作已取消。\033[0m"
+            return
+        fi
         clean_sysctl_conf
         echo "net.core.default_qdisc=$QDISC" | sudo tee -a "$SYSCTL_CONF" > /dev/null
         echo "net.ipv4.tcp_congestion_control=$ALGO" | sudo tee -a "$SYSCTL_CONF" > /dev/null
@@ -86,6 +101,8 @@ install_packages() {
     sudo dpkg -i /tmp/linux-*.deb
     sudo update-grub
     echo -e "\033[36m安装完成，请手动重启系统以加载新内核（本脚本已禁用自动重启，确保安全）。\033[0m"
+    echo -e "\033[33m请手动输入 \033[1;32mreboot\033[0m\033[33m 命令以重启服务器！\033[0m"
+    read -n 1 -s -r -p "按任意键返回..."
 }
 
 # 函数：安装指定版本
@@ -165,10 +182,24 @@ case "$ACTION" in
         exit 0
         ;;
     1)
+        echo -e "\033[1;31m【高风险操作警告】\033[0m"
+        echo -e "\033[33m您即将安装或更新 BBR v3 内核，这可能导致：\033[0m"
+        echo -e "\033[33m- 系统内核被替换，部分 VPS/云服务器可能无法启动\033[0m"
+        echo -e "\033[33m- 网络异常、丢失 SSH 连接、甚至系统无法启动\033[0m"
+        echo -e "\033[33m- 请确保已备份重要数据，并知晓如何通过控制台救援\033[0m"
+        echo -e "\033[33m- 如为生产环境/重要服务器，强烈建议不要随意更换内核！\033[0m"
+        echo -n -e "\033[1;31m是否继续？(y/N): \033[0m"
+        read -r confirm_risk
+        if [[ ! "$confirm_risk" =~ ^[Yy]$ ]]; then
+            echo -e "\033[33m操作已取消。\033[0m"
+            read -n 1 -s -r -p "按任意键返回..."
+            break
+        fi
         echo -e "\033[1;32m٩(｡•́‿•̀｡)۶ 您选择了安装或更新 BBR v3！\033[0m"
         sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
         get_download_links
         install_packages
+        read -n 1 -s -r -p "按任意键返回..."
         ;;
     2)
         echo -e "\033[1;32m(｡･ω･｡) 检查是否为 BBR v3...\033[0m"
@@ -215,8 +246,22 @@ case "$ACTION" in
         read -n 1 -s -r -p "按任意键返回..."
         ;;
     6)
+        echo -e "\033[1;31m【高风险操作警告】\033[0m"
+        echo -e "\033[33m您即将卸载 BBR 内核，这可能导致：\033[0m"
+        echo -e "\033[33m- 系统内核被移除，若无其他可用内核，系统将无法启动\033[0m"
+        echo -e "\033[33m- 网络异常、丢失 SSH 连接、甚至系统无法启动\033[0m"
+        echo -e "\033[33m- 请确保已备份重要数据，并知晓如何通过控制台救援\033[0m"
+        echo -e "\033[33m- 如为生产环境/重要服务器，强烈建议不要随意卸载内核！\033[0m"
+        echo -n -e "\033[1;31m是否继续？(y/N): \033[0m"
+        read -r confirm_risk
+        if [[ ! "$confirm_risk" =~ ^[Yy]$ ]]; then
+            echo -e "\033[33m操作已取消。\033[0m"
+            read -n 1 -s -r -p "按任意键返回..."
+            break
+        fi
         echo -e "\033[1;32mヽ(・∀・)ノ 您选择了卸载 BBR 内核！\033[0m"
         sudo apt remove --purge $(dpkg -l | grep "joeyblog" | awk '{print $2}') -y
+        echo -e "\033[33m如需重启服务器，请手动输入 \033[1;32mreboot\033[0m\033[33m 命令！\033[0m"
         read -n 1 -s -r -p "按任意键返回..."
         ;;
     *)
