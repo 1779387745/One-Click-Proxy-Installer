@@ -176,7 +176,7 @@ while true; do
     read -r ACTION
     case "$ACTION" in
         0)
-            return
+            exit 0
             ;;
         1)
             echo -e "\033[1;31m【高风险操作警告】\033[0m"
