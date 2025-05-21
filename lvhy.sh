@@ -1067,7 +1067,12 @@ toolbox_menu() {
                 read -n 1 -s -r -p "按任意键返回工具箱..."
                 ;;
             5)
-                bash ./bbr_manage.sh
+                if [ -f ./bbr_manage.sh ]; then
+                    source ./bbr_manage.sh
+                else
+                    echo "未找到 bbr_manage.sh，请检查文件是否存在于当前目录。"
+                    read -n 1 -s -r -p "按任意键返回工具箱..."
+                fi
                 ;;
             6)
                 # 组件管理
