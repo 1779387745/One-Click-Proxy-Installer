@@ -16,7 +16,7 @@
 ```bash
 apt-get update && apt-get install -y curl
 ```
-**命令1. 下载脚本并启动：(报错则更新系统或下载curl)(安装命令不要去做一个收藏之后会有一个优化)**
+**命令1. 下载脚本并启动：(报错则更新系统或下载curl)(安装命令不要去做一个保存后面会优化启动命令)**
 
 ```bash
 curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/lvhy.sh" -o lvhy.sh &&
