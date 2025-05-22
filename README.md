@@ -111,7 +111,7 @@ sudo bash lvhy.sh
 curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh#建议快捷命令改为 w 避免冲突！
 ```
 
-- [科技lion一键脚本]：
+- [科技lion一键脚本](https://kejilion.sh/index-zh-CN.html)
 
 ```bash
 bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
