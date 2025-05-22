@@ -123,9 +123,9 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
   - [husi](https://github.com/xchacha20-poly1305/husi/releases)
   - [Clash-Meta](https://github.com/MetaCubeX/ClashMetaForAndroid/releases)
   - [hiddify](https://github.com/hiddify/hiddify-next/releases)
-  - [v2rayNG](https://github.com/2dust/v2rayNG/releases)
+  - [v2rayNG](https://github.com/2dust/v2rayNG/releases)(安卓设备推荐)
   - [Clash-Verge](https://github.com/clash-verge-rev/clash-verge-rev/releases)
-  - [v2rayN](https://github.com/2dust/v2rayN/releases)
+  - [v2rayN](https://github.com/2dust/v2rayN/releases)(Win电脑PC端)
 
 - 服务器推荐：[akile](https://akile.io/register?aff_code=99532291-0323-491e-bdd7-fbcfebbd1fa5)
 
