@@ -105,13 +105,13 @@ sudo bash lvhy.sh
 
 ## 推荐工具箱/三方客户端
 
-- [老王一键工具箱](https://github.com/eooce/ssh_tool)：
+- [老王一键工具箱](https://github.com/eooce/ssh_tool)：适合小白用户搭建科学上网。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh#建议快捷命令改为 w 避免冲突！
 ```
 
-- [科技lion一键脚本](https://kejilion.sh/index-zh-CN.html)
+- [科技lion一键脚本](https://kejilion.sh/index-zh-CN.html)：适合无基础小白网站的建设与维护。
 
 ```bash
 bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
