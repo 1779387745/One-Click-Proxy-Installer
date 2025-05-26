@@ -1,1 +1,35 @@
-GITHUB_TOKEN
+name: 自动修复BBR管理与主脚本适配
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-bbr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取仓库代码
+        uses: actions/checkout@v4
+
+      - name: 修正 lvhy.sh BBR 管理菜单路径
+        run: |
+          sed -i '/5)/,/\.\.\./c\
+                5)\
+                    BBR_MANAGE_PATH="$(dirname "\$0")/bbr_manage.sh"\
+                    if [ -f "\$BBR_MANAGE_PATH" ]; then\
+                        source "\$BBR_MANAGE_PATH"\
+                    else\
+                        echo "未找到 bbr_manage.sh，请检查文件是否存在。";\
+                        read -n 1 -s -r -p "按任意键返回工具箱...";\
+                    fi\
+                    ;;' lvhy.sh
+
+      - name: 修正 bbr_manage.sh 结尾
+        run: |
+          echo -e '\necho -e "\\n已返回主菜单"\nread -n 1 -s -r -p "按任意键返回工具箱..."\nreturn 2>/dev/null' >> bbr_manage.sh
+
+      - name: 提交更改
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lvhy.sh bbr_manage.sh
+          git commit -m "fix: 自动修复BBR菜单与主脚本交互"
+          git push
