@@ -32,4 +32,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lvhy.sh bbr_manage.sh
           git commit -m "fix: 自动修复BBR菜单与主脚本交互"
-          git push
+          git push 
