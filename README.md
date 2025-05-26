@@ -101,7 +101,7 @@ sudo bash lvhy.sh
     sudo ufw allow 8443/udp # Hysteria2 需要 UDP
     sudo ufw reload
     ```
-- **端口选择：选 443、80、8080 这类常见端口，更容易伪装成正常网站流量。**
+- **端口选择：选 443、8443、80、8080 这类常见端口，更容易伪装成正常网站流量。**
 
 - **在线订阅转换网站**：[订阅转换](https://sub.crazyact.com/)
 
