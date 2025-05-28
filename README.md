@@ -139,6 +139,7 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
     - [磁力熊](https://www.cilixiong.org/)影视
     - [IP质量检测](https://ipjiance.com/)
     - [IP纯净度检测](https://scamalytics.com/​)
+    - [节点测速](https://fiber.google.com/speedtest/)
 
 ---
 
