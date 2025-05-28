@@ -136,12 +136,13 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
 
 - 实用网站推荐：
     - [libretv-自建影视](https://053312d1.libretv-edb.pages.dev/)进入密码:123
-    - [磁力熊](https://www.cilixiong.org/)影视
+    - [磁力熊](https://www.cilixiong.org/)也是影视！
     - [IP质量检测](https://ipjiance.com/)
     - [IP纯净度检测](https://scamalytics.com/​)
     - [节点测速](https://fiber.google.com/speedtest/)
     - [ip.sb](https://ip.sb/)
     - [ip泄露真实地址检测](https://dw.jhb.ovh/)
+    - [CF网址：](https://www.cloudflare.com/zh-cn/)CloudFlare
 
 ---
 
