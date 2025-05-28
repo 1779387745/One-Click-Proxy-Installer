@@ -141,6 +141,7 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
     - [IP纯净度检测](https://scamalytics.com/​)
     - [节点测速](https://fiber.google.com/speedtest/)
     - [ip.sb](https://ip.sb/)
+    - [ip泄露真实地址检测](https://dw.jhb.ovh/)
 
 ---
 
