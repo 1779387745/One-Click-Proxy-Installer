@@ -122,12 +122,12 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
 ```
 
 - 安卓/iOS/PC 推荐客户端：
-  - [Karing](https://github.com/KaringX/karing/releases)（免费开源，强烈推荐）
+  - [Karing](https://github.com/KaringX/karing/releases)（全平台免费开源，强烈推荐）
   - [nekobox](https://github.com/MatsuriDayo/NekoBoxForAndroid/releases)
   - [husi](https://github.com/xchacha20-poly1305/husi/releases)
   - [Clash-Meta](https://github.com/MetaCubeX/ClashMetaForAndroid/releases)
   - [hiddify](https://github.com/hiddify/hiddify-next/releases)
-  - [v2rayNG](https://github.com/2dust/v2rayNG/releases)(安卓设备推荐)
+  - [v2rayNG](https://github.com/2dust/v2rayNG/releases)(安卓设备首选)
   - [Clash-Verge](https://github.com/clash-verge-rev/clash-verge-rev/releases)
   - [v2rayN](https://github.com/2dust/v2rayN/releases)(Win电脑PC端)
 
