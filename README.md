@@ -155,7 +155,7 @@ wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh && bash menu.sh [opt
 ```
 
 ---
-#感谢兄弟们的支持，之后会加以完善此项目，敬请关注！
+感谢兄弟们的支持，之后会加以完善此项目，敬请关注！
 ---
 
 ## 贡献
