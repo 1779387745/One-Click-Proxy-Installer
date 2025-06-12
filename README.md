@@ -140,9 +140,11 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
     - [IP质量检测](https://ipjiance.com/)
     - [IP纯净度检测](https://scamalytics.com/​)
     - [节点测速](https://fiber.google.com/speedtest/)
-    - [ip.sb](https://ip.sb/)
-    - [ip泄露真实地址检测](https://dw.jhb.ovh/)，非你所处真实地址则没泄露！
     - [CF网址：](https://www.cloudflare.com/zh-cn/)CloudFlare
+    - [ip.sb](https://ip.sb/)
+    - [ip泄露真实地址检测1](https://dw.jhb.ovh/)，非你所处真实地址则没泄露！
+    - [ip泄露真实地址检测2](https://ipleak.net/)
+    - [ip泄露真实地址检测3](https://ip111.cn/)
 
 ---
 
