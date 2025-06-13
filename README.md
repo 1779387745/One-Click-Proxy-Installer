@@ -109,7 +109,7 @@ sudo bash lvhy.sh
 
 ## 推荐工具箱/三方客户端/实用网站
 
-- [老王一键工具箱](https://github.com/eooce/ssh_tool)：适合小白用户搭建科学上网。
+- [老王一键工具箱](https://github.com/eooce/ssh_tool)：此工具，适合小白用户轻松搭建上网节点，跟我的脚本一样简单好用，轻松上手！
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh#建议快捷命令改为 w 避免冲突！
