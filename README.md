@@ -133,7 +133,7 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
   - [v2rayN](https://github.com/2dust/v2rayN/releases)(Win电脑PC端)
 
 - 下载并安装SSH连接工具:
-  - [Finalshell:](https://www.hostbuf.com/t/988.html)
+  - [Finalshell:](https://www.hostbuf.com/t/988.html)稳定好用！
 
 
 - 实用网站推荐：
