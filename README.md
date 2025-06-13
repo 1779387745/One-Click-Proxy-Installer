@@ -93,7 +93,7 @@ sudo bash lvhy.sh
 
 ## 注意事项
 
-- **防火墙**：如启用 ufw/firewalld，需放行相关端口。
+- **防火墙**：只需放行相关端口。
   - 例如 Reality 用 443，Hysteria2 用 8443：
     ```bash
     sudo ufw allow 443/tcp
