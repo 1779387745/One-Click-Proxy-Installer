@@ -1,20 +1,4 @@
-Copyright (C) 2022 by nekohasekai <contact-sagernet@sekai.icu>
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <http://www.gnu.org/licenses/>.
-
-In addition, no derivative work may use the name or imply association
-with this application without prior consent.
 
 
 # One-Click-Proxy-Installer 一键安装脚本
@@ -22,7 +6,7 @@ with this application without prior consent.
 ## 🌟 简介
 
 > 真正适合小白折腾的脚本！当然，大白也可以按需服用哦！
-> 快捷启动命令：`box`
+> 可第一时间设置快捷启动命令：`box`或者'x'等方便以后快速进入本脚本
 
 本脚本用于在 Linux 服务器上快速安装、配置和管理 [Sing-Box](https://github.com/SagerNet/sing-box)，特别针对 Hysteria2 和 VLESS Reality 协议优化。
 
