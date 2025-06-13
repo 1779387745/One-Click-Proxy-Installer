@@ -132,7 +132,8 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
   - [Clash-Verge](https://github.com/clash-verge-rev/clash-verge-rev/releases)
   - [v2rayN](https://github.com/2dust/v2rayN/releases)(Win电脑PC端)
 
-- 服务器推荐：[akile](https://akile.io/register?aff_code=99532291-0323-491e-bdd7-fbcfebbd1fa5)
+- 下载并安装SSH连接工具:
+  - [Finalshell:](https://www.hostbuf.com/t/988.html)
 
 
 - 实用网站推荐：
