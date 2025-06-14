@@ -29,7 +29,7 @@ apt-get update && apt-get install -y curl
 wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh && bash menu.sh [option] [lisence/url/token]
 ```
 
-**命令1. 下载脚本并启动：(报错则更新系统或下载curl)(安装命令不要去做一个保存后面会优化启动命令)**
+**命令1. 下载脚本并启动：(报错则更新系统或下载curl组件)(安装命令不要去做一个保存后面会优化启动命令)**
 
 ```bash
 curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/lvhy.sh" -o lvhy.sh &&
