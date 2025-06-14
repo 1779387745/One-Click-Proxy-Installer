@@ -26,6 +26,8 @@ apt-get update && apt-get install -y curl
 **套warp(IPV4可选)：**
 
 ```bash
+wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh && bash menu.sh [option] [lisence/url/token]
+```
 
 **命令1. 下载脚本并启动：(报错则更新系统或下载curl)(安装命令不要去做一个保存后面会优化启动命令)**
 
