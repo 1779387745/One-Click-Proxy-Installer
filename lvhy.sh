@@ -551,6 +551,23 @@ EOF
         esac
         return 1
     fi
+    if [ "$mode" == "all" ] || [ "$mode" == "socks5" ]; then
+    inbounds_json_array+=( "$(cat <<EOF
+        {
+            "type": "socks",
+            "tag": "socks-in",
+            "listen": "0.0.0.0",
+            "listen_port": ${SOCKS5_PORT:-10808},
+            "users": [
+                {
+                    "username": "${SOCKS5_USER:-user}",
+                    "password": "${SOCKS5_PASS:-pass}"
+                }
+            ]
+        }
+EOF
+)" )
+fi
 }
 
 
