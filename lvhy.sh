@@ -1247,6 +1247,7 @@ show_menu() {
     echo "  1. 安装 Hysteria2 + Reality (共存)"
     echo "  2. 单独安装 Hysteria2"
     echo "  3. 单独安装 Reality (VLESS)"
+    echo "  4. 单独安装 socks5"
     echo -e "${MAGENTA}${BOLD}=================【管理相关】==================${NC}"
     echo "  4. 启动 Sing-box 服务"
     echo "  5. 停止 Sing-box 服务"
@@ -1271,6 +1272,7 @@ show_menu() {
         1) install_hysteria2_reality ;;
         2) install_hysteria2_only ;;
         3) install_reality_only ;;
+        4) install_socks5_only ;;
         4) manage_singbox "start" ;;
         5) manage_singbox "stop" ;;
         6) manage_singbox "restart" ;;
