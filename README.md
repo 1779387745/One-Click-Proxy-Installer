@@ -203,13 +203,10 @@ Chart](https://api.star-history.com/svg?repos=shangguancaiyun/One-Click-Proxy-In
 
 
 <details>
-  <summary>致谢</summary>
+  <summary>Star History</summary>
   <pre><code> 
-- [Sing-Box](https://github.com/SagerNet/sing-box)
-- 感谢[项目](https://github.com/Netflixxp/vlhy2)及其开发者，提供的技术支持与灵感参考。
-- 所有为开源社区做出贡献的人
-- [副本](https://github.com/shangguan3366/One-Click-Proxy-Installer)
-- [![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+[![Star History
+Chart](https://api.star-history.com/svg?repos=shangguancaiyun/One-Click-Proxy-Installer&type=Date)](https://www.star-history.com/#shangguancaiyun/One-Click-Proxy-Installer&Date)
   </code></pre>
 </details>
 
