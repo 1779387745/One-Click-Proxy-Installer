@@ -187,17 +187,20 @@ MIT License  |  维护者：Zhong Yuan
 - 本脚本仅供学习和测试，请勿用于非法用途。
 - 作者不对使用此脚本可能造成的任何后果负责。
 
-## 致谢
-
+<details>
+  <summary>致谢</summary>
+  
 - [Sing-Box](https://github.com/SagerNet/sing-box)
 - 感谢[项目](https://github.com/Netflixxp/vlhy2)及其开发者，提供的技术支持与灵感参考。
 - 所有为开源社区做出贡献的人
 - [副本](https://github.com/shangguan3366/One-Click-Proxy-Installer)
 - [![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
 
+</details>
+
 
 <details>
-  <summary>Star History</summary>
+  <summary>星星历史</summary>
   
 [![Star History Chart](https://api.star-history.com/svg?repos=shangguancaiyun/One-Click-Proxy-Installer&type=Date)](https://www.star-history.com/#shangguancaiyun/One-Click-Proxy-Installer&Date)
 
@@ -207,13 +210,17 @@ MIT License  |  维护者：Zhong Yuan
 
 
 <details>
-  <summary>致谢</summary>
+  <summary>安卓/iOS/PC 推荐客户端：</summary>
   
-- [Sing-Box](https://github.com/SagerNet/sing-box)
-- 感谢[项目](https://github.com/Netflixxp/vlhy2)及其开发者，提供的技术支持与灵感参考。
-- 所有为开源社区做出贡献的人
-- [副本](https://github.com/shangguan3366/One-Click-Proxy-Installer)
-- [![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+- 安卓/iOS/PC 推荐客户端：
+  - [Karing](https://github.com/KaringX/karing/releases)（全平台免费开源，强烈推荐）
+  - [nekobox](https://github.com/MatsuriDayo/NekoBoxForAndroid/releases)
+  - [husi](https://github.com/xchacha20-poly1305/husi/releases)
+  - [Clash-Meta](https://github.com/MetaCubeX/ClashMetaForAndroid/releases)
+  - [hiddify](https://github.com/hiddify/hiddify-next/releases)
+  - [v2rayNG](https://github.com/2dust/v2rayNG/releases)(安卓设备首选)
+  - [Clash-Verge](https://github.com/clash-verge-rev/clash-verge-rev/releases)
+  - [v2rayN](https://github.com/2dust/v2rayN/releases)(Win电脑PC端)
 
 </details>
 
