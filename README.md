@@ -11,7 +11,6 @@
 
 本脚本用于在 Linux 服务器上快速安装、配置和管理 [Sing-Box](https://github.com/SagerNet/sing-box)，特别针对 Hysteria2 和 VLESS Reality 协议优化。
 
----
 
 ## 推荐工具箱/三方客户端/实用网站🌟
 
