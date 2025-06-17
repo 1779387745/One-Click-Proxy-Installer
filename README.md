@@ -168,13 +168,19 @@ wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh && bash menu.sh [opt
 - 未来会在便捷实用的基础上加以完善此项目，敬请关注！•᷄ࡇ•᷅
 ---
 
-## 贡献
-
+<details>
+  <summary>贡献</summary>
+  <pre><code> 
 欢迎提交 Pull Requests 或在 Issues 中报告错误、提出建议。
+  </code></pre>
+</details>
 
-## 开源协议
-
+<details>
+  <summary>开源协议</summary>
+  <pre><code> 
 MIT License  |  维护者：Zhong Yuan
+  </code></pre>
+</details>
 
 ## 免责声明
 
@@ -197,9 +203,13 @@ Chart](https://api.star-history.com/svg?repos=shangguancaiyun/One-Click-Proxy-In
 
 
 <details>
-  <summary>贡献</summary>
+  <summary>致谢</summary>
   <pre><code> 
-欢迎提交 Pull Requests 或在 Issues 中报告错误、提出建议。
+- [Sing-Box](https://github.com/SagerNet/sing-box)
+- 感谢[项目](https://github.com/Netflixxp/vlhy2)及其开发者，提供的技术支持与灵感参考。
+- 所有为开源社区做出贡献的人
+- [副本](https://github.com/shangguan3366/One-Click-Proxy-Installer)
+- [![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
   </code></pre>
 </details>
 
