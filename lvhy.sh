@@ -49,6 +49,9 @@ SINGBOX_SERVICE_FILE="/etc/systemd/system/sing-box.service"
 HYSTERIA_CERT_DIR="/etc/hysteria" # 针对自签名证书
 HYSTERIA_CERT_KEY="${HYSTERIA_CERT_DIR}/private.key"
 HYSTERIA_CERT_PEM="${HYSTERIA_CERT_DIR}/cert.pem"
+SOCKS5_PORT="10808"
+SOCKS5_USER="user"
+SOCKS5_PASS="pass"
 
 # 用于持久存储上次配置信息的文件
 PERSISTENT_INFO_FILE="${SINGBOX_CONFIG_DIR}/.last_singbox_script_info"
