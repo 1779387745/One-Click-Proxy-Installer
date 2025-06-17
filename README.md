@@ -227,6 +227,17 @@ MIT License  |  维护者：Zhong Yuan
   - [v2rayNG](https://github.com/2dust/v2rayNG/releases)(安卓设备首选)
   - [Clash-Verge](https://github.com/clash-verge-rev/clash-verge-rev/releases)
   - [v2rayN](https://github.com/2dust/v2rayN/releases)(Win电脑PC端)
+- [老王一键工具箱](https://github.com/eooce/ssh_tool)：此工具，适合小白用户轻松搭建上网节点，跟我的脚本一样简单好用，轻松上手！
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh#建议快捷命令改为 w 避免冲突！
+```
+
+- [科技lion一键脚本](https://kejilion.sh/index-zh-CN.html)：适合无基础小白网站的建设与维护。
+
+```bash
+bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
+```
 
 </details>
 
