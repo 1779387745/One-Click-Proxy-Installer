@@ -211,3 +211,11 @@ Chart](https://api.star-history.com/svg?repos=shangguancaiyun/One-Click-Proxy-In
 </details>
 
 
+
+<details>
+  <summary>Star History</summary>
+  
+[![Star History Chart](https://api.star-history.com/svg?repos=shangguancaiyun/One-Click-Proxy-Installer&type=Date)](https://www.star-history.com/#shangguancaiyun/One-Click-Proxy-Installer&Date)
+
+</details>
+
