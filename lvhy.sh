@@ -779,6 +779,40 @@ install_reality_only() {
     success "Reality (VLESS) 单独安装配置完成！"
     display_and_store_config_info "reality"
 }
+install_socks5_only() {
+    info "开始单独安装 socks5..."
+    install_singbox_core || return 1
+    get_server_ip
+
+    # 让用户输入端口、用户名、密码，如果直接回车就用默认值
+    read -p "请输入 socks5 监听端口 (默认: 10808): " temp_socks5_port
+    SOCKS5_PORT=${temp_socks5_port:-10808}
+    read -p "请输入 socks5 用户名 (默认: user): " temp_socks5_user
+    SOCKS5_USER=${temp_socks5_user:-user}
+    read -p "请输入 socks5 密码 (默认: pass): " temp_socks5_pass
+    SOCKS5_PASS=${temp_socks5_pass:-pass}
+
+    # 清空其他协议相关的全局变量
+    LAST_HY2_PORT=""
+    LAST_HY2_PASSWORD=""
+    LAST_HY2_MASQUERADE_CN=""
+    LAST_HY2_LINK=""
+    LAST_REALITY_PORT=""
+    LAST_REALITY_UUID=""
+    LAST_REALITY_PUBLIC_KEY=""
+    LAST_REALITY_SNI=""
+    LAST_VLESS_LINK=""
+    LAST_INSTALL_MODE="socks5"
+
+    # 调用配置文件生成函数
+    create_config_json "socks5" "" "" "" "" "" "" "" || return 1
+
+    create_systemd_service
+    start_singbox_service || return 1
+
+    success "socks5 单独安装配置完成！"
+    display_and_store_config_info "socks5"
+}
 
 show_current_import_info() {
     if [ -z "$LAST_INSTALL_MODE" ]; then
