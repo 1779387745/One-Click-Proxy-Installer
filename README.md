@@ -27,6 +27,8 @@ wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh && bash menu.sh [opt
 ```
 ---
 
+## vps实用工具箱推荐
+
 - [老王一键工具箱](https://github.com/eooce/ssh_tool)：此工具，适合小白用户轻松搭建上网节点，跟我的脚本一样简单好用，轻松上手！
 
 ```bash
@@ -38,9 +40,12 @@ curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o 
 ```bash
 bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
 ```
+---
+
+## ssh终端连接/实用网站
   
 - 下载并安装SSH连接工具:
-  - [Finalshell:](https://www.hostbuf.com/t/988.html)稳定好用！基本人手一个。
+  - [Finalshell电脑版:](https://www.hostbuf.com/t/988.html)稳定好用！基本人手一个。
 
 - 安卓/iOS/PC 推荐客户端：
   - [Karing](https://github.com/KaringX/karing/releases)（全平台免费开源，强烈推荐）
