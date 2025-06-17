@@ -178,13 +178,6 @@ sudo bash lvhy.sh
 ---
 
 <details>
-  <summary>贡献</summary>
-  <pre><code> 
-欢迎提交 Pull Requests 或在 Issues 中报告错误、提出建议。
-  </code></pre>
-</details>
-
-<details>
   <summary>开源协议</summary>
   <pre><code> 
 MIT License  |  维护者：Zhong Yuan
@@ -204,6 +197,7 @@ MIT License  |  维护者：Zhong Yuan
 - 所有为开源社区做出贡献的人
 - [副本](https://github.com/shangguan3366/One-Click-Proxy-Installer)
 - [![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+- 欢迎提交 Pull Requests 或在 Issues 中报告错误、提出建议。
 
 </details>
 
