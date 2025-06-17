@@ -196,4 +196,11 @@ MIT License  |  维护者：Zhong Yuan
 Chart](https://api.star-history.com/svg?repos=shangguancaiyun/One-Click-Proxy-Installer&type=Date)](https://www.star-history.com/#shangguancaiyun/One-Click-Proxy-Installer&Date)
 
 
+<details>
+  <summary>贡献</summary>
+  <pre><code> 
+欢迎提交 Pull Requests 或在 Issues 中报告错误、提出建议。
+  </code></pre>
+</details>
+
 
