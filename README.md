@@ -18,6 +18,15 @@
 <details>
   <summary>安卓/iOS/PC 推荐客户端、ssh工具、实用网站推荐：</summary>
 
+## VPS仅IPV6/IPV4 脚本推荐
+
+- [WARP 一键脚本](https://gitlab.com/fscarmen/warp)先套IPV4/IPV6：
+
+```bash
+wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh && bash menu.sh [option] [lisence/url/token]
+```
+---
+
 - [老王一键工具箱](https://github.com/eooce/ssh_tool)：此工具，适合小白用户轻松搭建上网节点，跟我的脚本一样简单好用，轻松上手！
 
 ```bash
@@ -56,6 +65,7 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
 
 
 </details>
+
 ---
 
 ## ✨ 使用方法
