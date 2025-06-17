@@ -677,6 +677,19 @@ display_and_store_config_info() {
         fi
         echo -e "${MAGENTA}${BOLD}--------------------------------------------${NC}"
     fi
+    if [ "$mode" == "all" ] || [ "$mode" == "socks5" ]; then
+    echo -e "${GREEN}${BOLD} socks5 配置信息:${NC}"
+    echo -e "服务器地址: ${GREEN}${LAST_SERVER_IP}${NC}"
+    echo -e "端口: ${GREEN}${SOCKS5_PORT}${NC}"
+    echo -e "用户名: ${GREEN}${SOCKS5_USER}${NC}"
+    echo -e "密码: ${GREEN}${SOCKS5_PASS}${NC}"
+    echo -e "socks5 代理URL: ${GREEN}socks5://${SOCKS5_USER}:${SOCKS5_PASS}@${LAST_SERVER_IP}:${SOCKS5_PORT}${NC}"
+    if $qrencode_is_ready && command -v qrencode &>/dev/null; then
+        echo -e "${YELLOW}socks5 二维码:${NC}"
+        qrencode -t ANSIUTF8 "socks5://${SOCKS5_USER}:${SOCKS5_PASS}@${LAST_SERVER_IP}:${SOCKS5_PORT}"
+    fi
+    echo -e "${MAGENTA}${BOLD}--------------------------------------------${NC}"
+fi
     save_persistent_info
     echo
     read -n 1 -s -r -p "按任意键返回主菜单..."
