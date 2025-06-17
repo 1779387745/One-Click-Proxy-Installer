@@ -15,8 +15,36 @@
 
 ## ✨ 使用方法
 
+<details>
+  <summary>安卓/iOS/PC 推荐客户端、ssh工具、实用网站推荐：</summary>
+  
 - 下载并安装SSH连接工具:
-  - [Finalshell:](https://www.hostbuf.com/t/988.html)稳定好用！
+  - [Finalshell:](https://www.hostbuf.com/t/988.html)稳定好用！基本人手一个。
+
+- 安卓/iOS/PC 推荐客户端：
+  - [Karing](https://github.com/KaringX/karing/releases)（全平台免费开源，强烈推荐）
+  - [nekobox](https://github.com/MatsuriDayo/NekoBoxForAndroid/releases)
+  - [husi](https://github.com/xchacha20-poly1305/husi/releases)
+  - [Clash-Meta](https://github.com/MetaCubeX/ClashMetaForAndroid/releases)
+  - [hiddify](https://github.com/hiddify/hiddify-next/releases)
+  - [v2rayNG](https://github.com/2dust/v2rayNG/releases)(安卓设备首选)
+  - [Clash-Verge](https://github.com/clash-verge-rev/clash-verge-rev/releases)
+  - [v2rayN](https://github.com/2dust/v2rayN/releases)(Win电脑PC端)
+
+- 实用网站推荐：
+    - [libretv-自建影视](https://053312d1.libretv-edb.pages.dev/)进入密码:123
+    - [磁力熊](https://www.cilixiong.org/)也是影视！
+    - [IP质量检测](https://ipjiance.com/)
+    - [IP纯净度检测](https://scamalytics.com/​)
+    - [节点测速](https://fiber.google.com/speedtest/)
+    - [CF网址：](https://www.cloudflare.com/zh-cn/)CloudFlare
+    - [ip泄露真实地址检测1](https://dw.jhb.ovh/)，非你所处真实地址则没泄露！
+    - [ip泄露真实地址检测2](https://ipleak.net/)
+
+
+</details>
+
+
 
 **更新系统(可选)：**
 
