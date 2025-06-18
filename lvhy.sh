@@ -6,7 +6,6 @@ install_dependencies() {
         INSTALL_CMD="sudo yum install -y"
     elif command -v apt >/dev/null 2>&1; then
         PM="apt"
-        INSTALL_CMD="sudo apt update && sudo apt install -y"
     elif command -v dnf >/dev/null 2>&1; then
         PM="dnf"
         INSTALL_CMD="sudo dnf install -y"
@@ -15,13 +14,24 @@ install_dependencies() {
         exit 1
     fi
 
-    # 依赖列表
     DEPENDENCIES=(curl wget git jq sed grep cut bc unzip)
 
     for cmd in "${DEPENDENCIES[@]}"; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             echo "📦 缺少依赖：$cmd，正在尝试安装..."
-            $INSTALL_CMD "$cmd"
+
+            if [ "$PM" = "apt" ]; then
+                if [ ! -f "/tmp/.apt_updated" ]; then
+                    echo -e "${BLUE}[INFO]${NC} 正在执行 apt update（首次运行）..."
+                    sudo apt update && touch /tmp/.apt_updated
+                else
+                    echo -e "${BLUE}[INFO]${NC} 已跳过 apt update，使用缓存加速安装..."
+                fi
+                sudo apt install -y "$cmd"
+            else
+                $INSTALL_CMD "$cmd"
+            fi
+
             if [ $? -ne 0 ]; then
                 echo "❌ 安装 $cmd 失败，请手动安装后重试。"
                 exit 1
