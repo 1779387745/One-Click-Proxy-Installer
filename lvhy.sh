@@ -1,4 +1,3 @@
-#!/bin/bash
 
 # 检查并安装依赖
 install_dependencies() {
@@ -13,22 +12,15 @@ install_dependencies() {
         exit 1
     fi
 
-    if ! command -v curl >/dev/null 2>&1; then
-        $INSTALL_CMD curl
-    fi
-    if ! command -v wget >/dev/null 2>&1; then
-        $INSTALL_CMD wget
-    fi
-    if ! command -v git >/dev/null 2>&1; then
-        $INSTALL_CMD git
-    fi
+    DEPENDENCIES=(curl wget git jq sed grep cut bc unzip)
+
+    for cmd in "${DEPENDENCIES[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo "缺少依赖：$cmd，正在尝试安装..."
+            $INSTALL_CMD "$cmd"
+        fi
+    done
 }
-
-# ====== 调用依赖检测（加在脚本最前面）======
-install_dependencies
-
-# ====== 你的脚本其他内容 ======
-echo "所有依赖已准备好，继续后续操作..."
 
 #!/bin/bash
 
