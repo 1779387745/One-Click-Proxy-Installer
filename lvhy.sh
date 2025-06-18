@@ -43,8 +43,11 @@ SINGBOX_CONFIG_DIR="/usr/local/etc/sing-box"
 
 # --- 统计函数 ---
 update_run_stats() {
+update_run_stats() {
     local today_str
     today_str=$(date +%Y-%m-%d)
+
+    # 本地统计
     if [ -f "$STATS_FILE" ]; then
         source "$STATS_FILE"
     else
@@ -52,34 +55,38 @@ update_run_stats() {
         RUN_TODAY=0
         RUN_TODAY_DATE="$today_str"
     fi
+
     if [ "$RUN_TODAY_DATE" = "$today_str" ]; then
-        RUN_TODAY=$((RUN_TODAY+1))
+        RUN_TODAY=$((RUN_TODAY + 1))
     else
         RUN_TODAY=1
         RUN_TODAY_DATE="$today_str"
     fi
-    RUN_TOTAL=$((RUN_TOTAL+1))
+
+    RUN_TOTAL=$((RUN_TOTAL + 1))
+
     cat > "$STATS_FILE" <<EOF
 RUN_TOTAL=$RUN_TOTAL
 RUN_TODAY=$RUN_TODAY
 RUN_TODAY_DATE="$RUN_TODAY_DATE"
 EOF
 
-    # 上传统计数据
-    curl -s -X POST "http://kfc3.rf.gd/oneclick_stats.php" -d "user=$(whoami)&date=$today_str" >/dev/null 2>&1
+    # 上传并获取全局统计数据
+    STATS_RESPONSE=$(curl -s -X POST "http://kfc3.rf.gd/oneclick_stats.php" -d "user=$(whoami)&date=$today_str")
+
+    # 尝试解析 JSON（需要 jq，否则使用 grep+cut）
+    if command -v jq >/dev/null 2>&1; then
+        GLOBAL_RUN_TOTAL=$(echo "$STATS_RESPONSE" | jq -r '.total')
+        GLOBAL_RUN_TODAY=$(echo "$STATS_RESPONSE" | jq -r '.today')
+    else
+        GLOBAL_RUN_TOTAL=$(echo "$STATS_RESPONSE" | grep -o '"total":[0-9]*' | cut -d: -f2)
+        GLOBAL_RUN_TODAY=$(echo "$STATS_RESPONSE" | grep -o '"today":[0-9]*' | cut -d: -f2)
+    fi
+
+    # 提供默认值防止空变量
+    GLOBAL_RUN_TOTAL=${GLOBAL_RUN_TOTAL:-未知}
+    GLOBAL_RUN_TODAY=${GLOBAL_RUN_TODAY:-未知}
 }
-
-# --- 统计信息初始化 ---
-update_run_stats
-source "$STATS_FILE"
-
-# --- 通用暂停函数 ---
-pause() {
-    read -p "按回车键继续..." dummy
-}
-
-# 脚本主要功能
-echo "Hello, world!"
 
 # --- Author Information ---
 AUTHOR_NAME="Zhong Yuan"
