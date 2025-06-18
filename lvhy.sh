@@ -91,16 +91,21 @@ RUN_TODAY_DATE="$RUN_TODAY_DATE"
 EOF
 
     # 上传并获取全局统计数据
-    STATS_RESPONSE=$(curl -s -X POST "http://kfc3.rf.gd/oneclick_stats.php" -d "user=$(whoami)&date=$today_str")
+STATS_URL="http://kfc3.rf.gd/oneclick_stats.php"
+STATS_RESPONSE=$(curl -s "$STATS_URL")
 
     # 尝试解析 JSON（需要 jq，否则使用 grep+cut）
-    if command -v jq >/dev/null 2>&1; then
-        GLOBAL_RUN_TOTAL=$(echo "$STATS_RESPONSE" | jq -r '.total')
-        GLOBAL_RUN_TODAY=$(echo "$STATS_RESPONSE" | jq -r '.today')
-    else
-        GLOBAL_RUN_TOTAL=$(echo "$STATS_RESPONSE" | grep -o '"total":[0-9]*' | cut -d: -f2)
-        GLOBAL_RUN_TODAY=$(echo "$STATS_RESPONSE" | grep -o '"today":[0-9]*' | cut -d: -f2)
-    fi
+    if command -v jq >/dev/null 2>&1 && [[ "$STATS_RESPONSE" == *"total"* ]]; then
+    GLOBAL_RUN_TOTAL=$(echo "$STATS_RESPONSE" | jq -r '.total // "未知"')
+    GLOBAL_RUN_TODAY=$(echo "$STATS_RESPONSE" | jq -r '.today // "未知"')
+else
+    GLOBAL_RUN_TOTAL=$(echo "$STATS_RESPONSE" | grep -o '"total":[0-9]*' | cut -d: -f2)
+    GLOBAL_RUN_TODAY=$(echo "$STATS_RESPONSE" | grep -o '"today":[0-9]*' | cut -d: -f2)
+fi
+
+   # 输出运行次数
+echo -e "\033[34m[INFO]\033[0m 本脚本全网运行总次数：\033[33m${GLOBAL_RUN_TOTAL:-未知}\033[0m"
+echo -e "\033[34m[INFO]\033[0m 今日已运行次数：\033[33m${GLOBAL_RUN_TODAY:-未知}\033[0m"
 
     # 提供默认值防止空变量
     GLOBAL_RUN_TOTAL=${GLOBAL_RUN_TOTAL:-未知}
