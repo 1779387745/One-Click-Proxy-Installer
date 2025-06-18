@@ -7,17 +7,25 @@ install_dependencies() {
     elif command -v apt >/dev/null 2>&1; then
         PM="apt"
         INSTALL_CMD="sudo apt update && sudo apt install -y"
+    elif command -v dnf >/dev/null 2>&1; then
+        PM="dnf"
+        INSTALL_CMD="sudo dnf install -y"
     else
-        echo "不支持的操作系统，请手动安装 curl、wget、git 等依赖。"
+        echo "❌ 尚不支持此操作系统，请手动安装依赖：curl、wget、git、jq、sed、grep、cut、bc、unzip"
         exit 1
     fi
 
+    # 依赖列表
     DEPENDENCIES=(curl wget git jq sed grep cut bc unzip)
 
     for cmd in "${DEPENDENCIES[@]}"; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
-            echo "缺少依赖：$cmd，正在尝试安装..."
+            echo "📦 缺少依赖：$cmd，正在尝试安装..."
             $INSTALL_CMD "$cmd"
+            if [ $? -ne 0 ]; then
+                echo "❌ 安装 $cmd 失败，请手动安装后重试。"
+                exit 1
+            fi
         fi
     done
 }
@@ -34,7 +42,6 @@ SINGBOX_CONFIG_DIR="/usr/local/etc/sing-box"
 # ...
 
 # --- 统计函数 ---
-update_run_stats() {
 update_run_stats() {
     local today_str
     today_str=$(date +%Y-%m-%d)
