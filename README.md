@@ -86,7 +86,7 @@ apt-get update && apt-get install -y curl
 wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh && bash menu.sh [option] [lisence/url/token]
 ```
 
-**命令1. 下载脚本并启动：(报错则更新系统或下载curl组件)(安装命令不要去做一个保存后面会优化启动命令)**
+**命令1. 拉取脚本并启动：(报错则更新系统或下载curl组件)(安装命令不要去做一个保存后面会优化启动命令)**
 
 ```bash
 curl -fsSL "https://github.com/shangguancaiyun/One-Click-Proxy-Installer/raw/main/lvhy.sh" -o lvhy.sh &&
@@ -130,8 +130,7 @@ sudo bash lvhy.sh
 
 ```
 ================================================
- Sing-Box Hysteria2 & Reality 管理脚本
-================================================
+ 项目：One-Click-Proxy-Installer
  作者: Zhong Yuan
 ================================================
 安装选项:
