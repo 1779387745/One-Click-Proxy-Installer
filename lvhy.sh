@@ -1,5 +1,37 @@
 #!/bin/bash
 
+# 检查并安装依赖
+install_dependencies() {
+    if command -v yum >/dev/null 2>&1; then
+        PM="yum"
+        INSTALL_CMD="sudo yum install -y"
+    elif command -v apt >/dev/null 2>&1; then
+        PM="apt"
+        INSTALL_CMD="sudo apt update && sudo apt install -y"
+    else
+        echo "不支持的操作系统，请手动安装 curl、wget、git 等依赖。"
+        exit 1
+    fi
+
+    if ! command -v curl >/dev/null 2>&1; then
+        $INSTALL_CMD curl
+    fi
+    if ! command -v wget >/dev/null 2>&1; then
+        $INSTALL_CMD wget
+    fi
+    if ! command -v git >/dev/null 2>&1; then
+        $INSTALL_CMD git
+    fi
+}
+
+# ====== 调用依赖检测（加在脚本最前面）======
+install_dependencies
+
+# ====== 你的脚本其他内容 ======
+echo "所有依赖已准备好，继续后续操作..."
+
+#!/bin/bash
+
 # 全局变量和路径
 STATS_FILE="$HOME/.oneclick_stats"
 SINGBOX_INSTALL_PATH_EXPECTED="/usr/local/bin/sing-box"
