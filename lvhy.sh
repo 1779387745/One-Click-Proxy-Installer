@@ -30,6 +30,21 @@ RUN_TODAY_DATE="$RUN_TODAY_DATE"
 EOF
 }
 
+#!/bin/bash
+
+# 发送统计数据到你的服务器
+curl -X POST "http://kfc3.rf.gd/oneclick_stats.php" -d "user=$(whoami)&date=$(date +%Y-%m-%d)"
+
+# 统计函数
+update_run_stats() {
+    # ...你的统计代码
+}
+
+update_run_stats
+
+# 脚本的主要功能
+echo "Hello, world!"
+
 # --- Author Information ---
 AUTHOR_NAME="Zhong Yuan"
 QUICK_CMD_NAME="box"
