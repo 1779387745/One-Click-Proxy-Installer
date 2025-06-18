@@ -21,7 +21,7 @@ install_dependencies() {
             echo "📦 缺少依赖：$cmd，正在尝试安装..."
 
             if [ "$PM" = "apt" ]; then
-                if [ ! -f "/tmp/.apt_updated" ]; then
+                if [ "$FORCE_UPDATE" = true ] || [ ! -f "/tmp/.apt_updated" ]; then
                     echo -e "${BLUE}[INFO]${NC} 正在执行 apt update（首次运行）..."
                     sudo apt update && touch /tmp/.apt_updated
                 else
@@ -41,6 +41,16 @@ install_dependencies() {
 }
 
 #!/bin/bash
+
+# 参数解析：检查是否添加了 --force-update
+FORCE_UPDATE=false
+if [[ "$1" == "--force-update" ]]; then
+    FORCE_UPDATE=true
+fi
+
+# 全局变量
+STATS_FILE="$HOME/.oneclick_stats"
+# ... 其他变量 ...
 
 # 全局变量和路径
 STATS_FILE="$HOME/.oneclick_stats"
