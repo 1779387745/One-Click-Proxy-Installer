@@ -1,13 +1,17 @@
 #!/bin/bash
 
-# Script for Sing-Box Hysteria2 & Reality Management
-
-# --- 统计信息文件 ---
+# 全局变量和路径
 STATS_FILE="$HOME/.oneclick_stats"
+SINGBOX_INSTALL_PATH_EXPECTED="/usr/local/bin/sing-box"
+SINGBOX_CONFIG_DIR="/usr/local/etc/sing-box"
+# ...（省略部分变量定义）
+
+# 颜色定义
+# ...
 
 # --- 统计函数 ---
 update_run_stats() {
-    local today total today_str
+    local today_str
     today_str=$(date +%Y-%m-%d)
     if [ -f "$STATS_FILE" ]; then
         source "$STATS_FILE"
@@ -28,21 +32,21 @@ RUN_TOTAL=$RUN_TOTAL
 RUN_TODAY=$RUN_TODAY
 RUN_TODAY_DATE="$RUN_TODAY_DATE"
 EOF
+
+    # 上传统计数据
+    curl -s -X POST "http://kfc3.rf.gd/oneclick_stats.php" -d "user=$(whoami)&date=$today_str" >/dev/null 2>&1
 }
 
-#!/bin/bash
-
-# 发送统计数据到你的服务器
-curl -X POST "http://kfc3.rf.gd/oneclick_stats.php" -d "user=$(whoami)&date=$(date +%Y-%m-%d)"
-
-# 统计函数
-update_run_stats() {
-    # ...你的统计代码
-}
-
+# --- 统计信息初始化 ---
 update_run_stats
+source "$STATS_FILE"
 
-# 脚本的主要功能
+# --- 通用暂停函数 ---
+pause() {
+    read -p "按回车键继续..." dummy
+}
+
+# 脚本主要功能
 echo "Hello, world!"
 
 # --- Author Information ---
