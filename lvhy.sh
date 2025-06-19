@@ -91,7 +91,7 @@ RUN_TODAY_DATE="$RUN_TODAY_DATE"
 EOF
 
     # 上传并获取全局统计数据
-STATS_URL="https://kfc3.rf.gd/oneclick_stats.php?"
+STATS_URL="https://kfc3.rf.gd/oneclick_stats.php?i=1"
 STATS_RESPONSE=$(curl -s -A "Mozilla/5.0" "$STATS_URL")
 echo "[DEBUG] curl response: $STATS_RESPONSE"
 
