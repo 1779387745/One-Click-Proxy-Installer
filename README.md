@@ -138,6 +138,8 @@ sudo bash lvhy.sh
   2. 单独安装 Hysteria2(建议)
   3. 单独安装 Reality (VLESS)
   4. 单独安装 Socks5
+  5. 单独安装 Vmess
+  6. 单独安装 Tuic
 ------------------------------------------------
 管理选项:
   4. 启动 Sing-box 服务
