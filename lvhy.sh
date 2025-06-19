@@ -628,7 +628,7 @@ create_config_json() {
                         \"server_port\": 443
                     },
                     \"private_key\": \"$reality_private_key\",
-                    \"short_id": [\"$LAST_REALITY_SHORT_ID\"]
+                    \"short_id": [\"$(openssl rand -hex 8)\"]
                 }
             }
         }")
@@ -836,7 +836,8 @@ install_hysteria2_reality() {
 
     generate_self_signed_cert "$LAST_HY2_MASQUERADE_CN" || return 1
     generate_reality_credentials || return 1 
-    LAST_REALITY_SHORT_ID="${LAST_REALITY_SHORT_ID:-0123456789abcdef}"
+    # 自动生成随机 short_id
+   LAST_REALITY_SHORT_ID=$(openssl rand -hex 8)
 
     create_config_json "all" \
         "$LAST_HY2_PORT" "$LAST_HY2_PASSWORD" "$LAST_HY2_MASQUERADE_CN" \
@@ -899,7 +900,8 @@ install_reality_only() {
     LAST_HY2_PASSWORD=""
     LAST_HY2_MASQUERADE_CN=""
     LAST_HY2_LINK=""
-    LAST_REALITY_SHORT_ID="${LAST_REALITY_SHORT_ID:-0123456789abcdef}"
+    # 自动生成随机 short_id
+    LAST_REALITY_SHORT_ID=$(openssl rand -hex 8)
 
     create_config_json "reality" \
         "" "" "" \
