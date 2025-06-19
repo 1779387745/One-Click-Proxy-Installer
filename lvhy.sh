@@ -451,155 +451,37 @@ generate_random_password() {
 }
 
 install_singbox_core() {
-create_config_json() {
-    local mode="$1"
-    local hy2_port="$2"
-    local hy2_password="$3"
-    local hy2_masquerade_cn="$4"
-    local reality_port="$5"
-    local reality_uuid="$6"
-    local reality_private_key="$7"
-    local reality_sni="$8"
-
-    if [ -z "$SINGBOX_CMD" ]; then
-        error "Sing-box command (SINGBOX_CMD) 未设置。无法校验或格式化配置文件。"
-        return 1
-    fi
-
-    info "正在创建配置文件: ${SINGBOX_CONFIG_FILE}"
-    mkdir -p "$SINGBOX_CONFIG_DIR"
-
-    # 1. 构建 inbounds_json_array，根据模式提前添加所有协议
-    local inbounds_json_array=()
-    # Hysteria2
-    if [ "$mode" == "all" ] || [ "$mode" == "hysteria2" ]; then
-        inbounds_json_array+=( "$(cat <<EOF
-        {
-            "type": "hysteria2",
-            "tag": "hy2-in",
-            "listen": "::",
-            "listen_port": ${hy2_port},
-            "users": [
-                { "password": "${hy2_password}" }
-            ],
-            "masquerade": "https://placeholder.services.mozilla.com",
-            "up_mbps": 100,
-            "down_mbps": 500,
-            "tls": {
-                "enabled": true,
-                "alpn": ["h3"],
-                "certificate_path": "${HYSTERIA_CERT_PEM}",
-                "key_path": "${HYSTERIA_CERT_KEY}",
-                "server_name": "${hy2_masquerade_cn}"
-            }
-        }
-EOF
-)" )
-    fi
-
-    # Reality(VLESS)
-    if [ "$mode" == "all" ] || [ "$mode" == "reality" ]; then
-        inbounds_json_array+=( "$(cat <<EOF
-        {
-            "type": "vless",
-            "tag": "vless-in",
-            "listen": "::",
-            "listen_port": ${reality_port},
-            "users": [
-                {
-                    "uuid": "${LAST_REALITY_UUID}",
-                    "flow": "xtls-rprx-vision"
-                }
-            ],
-            "tls": {
-                "enabled": true,
-                "server_name": "${reality_sni}",
-                "reality": {
-                    "enabled": true,
-                    "handshake": {
-                        "server": "${reality_sni}",
-                        "server_port": 443
-                    },
-                    "private_key": "${TEMP_REALITY_PRIVATE_KEY}",
-                    "short_id": ["${LAST_REALITY_SHORT_ID}"]
-                }
-            }
-        }
-EOF
-)" )
-    fi
-
-    # SOCKS5 —— **提前添加**，确保写文件时已有
-    if [ "$mode" == "all" ] || [ "$mode" == "socks5" ]; then
-        inbounds_json_array+=( "$(cat <<EOF
-        {
-            "type": "socks",
-            "tag": "socks-in",
-            "listen": "0.0.0.0",
-            "listen_port": ${SOCKS5_PORT:-10808},
-            "users": [
-                {
-                    "username": "${SOCKS5_USER:-user}",
-                    "password": "${SOCKS5_PASS:-pass}"
-                }
-            ]
-        }
-EOF
-)" )
-    fi
-
-    # 2. 拼接 final_inbounds_json
-    local final_inbounds_json
-    final_inbounds_json=$(IFS=,; echo "${inbounds_json_array[*]}")
-
-    # 3. 写入配置文件
-    cat > "$SINGBOX_CONFIG_FILE" <<EOF
-{
-    "log": {
-        "level": "info",
-        "timestamp": true
-    },
-    "dns": {
-        "servers": [
-            { "tag": "google", "address": "8.8.8.8" },
-            { "tag": "cloudflare", "address": "1.1.1.1" },
-            { "tag": "aliyun", "address": "223.5.5.5" },
-            { "tag": "tencent", "address": "119.29.29.29" }
-        ],
-        "strategy": "ipv4_only"
-    },
-    "inbounds": [
-        ${final_inbounds_json}
-    ],
-    "outbounds": [
-        {
-            "type": "direct",
-            "tag": "direct"
-        }
-    ],
-    "route": {
-        "final": "direct"
-    }
-}
-EOF
-
-    # 4. 校验并格式化
-    info "正在校验配置文件..."
-    if $SINGBOX_CMD check -c "$SINGBOX_CONFIG_FILE"; then
-        success "配置文件语法正确。"
-        info "正在格式化配置文件..."
-        if $SINGBOX_CMD format -c "$SINGBOX_CONFIG_FILE" -w; then
-            success "配置文件格式化成功。"
+    if [ -f "$SINGBOX_INSTALL_PATH_EXPECTED" ]; then
+        info "Sing-box 已检测到在 $SINGBOX_INSTALL_PATH_EXPECTED."
+        find_and_set_singbox_cmd
+        if [ -n "$SINGBOX_CMD" ]; then
+            current_version=$($SINGBOX_CMD version | awk '{print $3}' 2>/dev/null)
+            if [ -n "$current_version" ]; then
+                info "当前版本: $current_version"
+            else
+                info "无法确定当前版本 (可能是旧版sing-box或命令问题)。"
+            fi
         else
-            warn "配置文件格式化失败，但语法可能仍正确。"
+            info "无法确定当前版本，因为 sing-box 命令未找到。"
+        fi
+        read -p "是否重新安装/更新 Sing-box (beta)? (y/N): " reinstall_choice
+        if [[ ! "$reinstall_choice" =~ ^[Yy]$ ]]; then
+            return 0
+        fi
+    fi
+    info "正在安装/更新 Sing-box (beta)..."
+    if bash -c "$(curl -fsSL https://sing-box.vercel.app/)" @ install --beta; then
+        success "Sing-box 安装/更新成功。"
+        find_and_set_singbox_cmd
+        if [ -z "$SINGBOX_CMD" ]; then
+            error "安装后仍无法找到 sing-box 命令。请检查安装和 PATH。"
+            return 1
         fi
     else
-        error "配置文件语法错误，请检查 ${SINGBOX_CONFIG_FILE}"
-        cat "${SINGBOX_CONFIG_FILE}"
-        # 可提供交互式修复提示...
+        error "Sing-box 安装失败。"
         return 1
     fi
-    # 其余逻辑（如无需再追加 socks5）无需更改
+    return 0
 }
 
 generate_self_signed_cert() {
