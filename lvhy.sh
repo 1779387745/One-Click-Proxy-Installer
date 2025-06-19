@@ -578,98 +578,83 @@ create_config_json() {
     local reality_private_key="$7"
     local reality_sni="$8"
 
-    if [ -z "$SINGBOX_CMD" ]; then
-        error "Sing-box command (SINGBOX_CMD) 未设置。无法校验或格式化配置文件。"
-        return 1
-    fi
-
-    info "正在创建配置文件: ${SINGBOX_CONFIG_FILE}"
     mkdir -p "$SINGBOX_CONFIG_DIR"
 
-    # 1. 构建 inbounds_json_array，根据模式提前添加所有协议
     local inbounds_json_array=()
-    # Hysteria2
+
+    # 构造 hy2 inbound
     if [ "$mode" == "all" ] || [ "$mode" == "hysteria2" ]; then
-        inbounds_json_array+=( "$(cat <<EOF
-        {
-            "type": "hysteria2",
-            "tag": "hy2-in",
-            "listen": "::",
-            "listen_port": ${hy2_port},
-            "users": [
-                { "password": "${hy2_password}" }
+        inbounds_json_array+=("{
+            \"type\": \"hysteria2\",
+            \"tag\": \"hy2-in\",
+            \"listen\": \"::\",
+            \"listen_port\": $hy2_port,
+            \"users\": [
+                { \"password\": \"$hy2_password\" }
             ],
-            "masquerade": "https://placeholder.services.mozilla.com",
-            "up_mbps": 100,
-            "down_mbps": 500,
-            "tls": {
-                "enabled": true,
-                "alpn": ["h3"],
-                "certificate_path": "${HYSTERIA_CERT_PEM}",
-                "key_path": "${HYSTERIA_CERT_KEY}",
-                "server_name": "${hy2_masquerade_cn}"
+            \"masquerade\": \"https://$hy2_masquerade_cn\",
+            \"up_mbps\": 100,
+            \"down_mbps\": 100,
+            \"tls\": {
+                \"enabled\": true,
+                \"alpn\": [\"h3\"],
+                \"certificate_path\": \"$HYSTERIA_CERT_PEM\",
+                \"key_path\": \"$HYSTERIA_CERT_KEY\",
+                \"server_name\": \"$hy2_masquerade_cn\"
             }
-        }
-EOF
-)" )
+        }")
     fi
 
-    # Reality(VLESS)
+    # 构造 reality inbound
     if [ "$mode" == "all" ] || [ "$mode" == "reality" ]; then
-        inbounds_json_array+=( "$(cat <<EOF
-        {
-            "type": "vless",
-            "tag": "vless-in",
-            "listen": "::",
-            "listen_port": ${reality_port},
-            "users": [
+        inbounds_json_array+=("{
+            \"type\": \"vless\",
+            \"tag\": \"reality-in\",
+            \"listen\": \"::\",
+            \"listen_port\": $reality_port,
+            \"users\": [
                 {
-                    "uuid": "${LAST_REALITY_UUID}",
-                    "flow": "xtls-rprx-vision"
+                    \"uuid\": \"$reality_uuid\",
+                    \"flow\": \"xtls-rprx-vision\"
                 }
             ],
-            "tls": {
-                "enabled": true,
-                "server_name": "${reality_sni}",
-                "reality": {
-                    "enabled": true,
-                    "handshake": {
-                        "server": "${reality_sni}",
-                        "server_port": 443
+            \"tls\": {
+                \"enabled\": true,
+                \"server_name\": \"$reality_sni\",
+                \"reality\": {
+                    \"enabled\": true,
+                    \"handshake\": {
+                        \"server\": \"$reality_sni\",
+                        \"server_port\": 443
                     },
-                    "private_key": "${TEMP_REALITY_PRIVATE_KEY}",
-                    "short_id": ["${LAST_REALITY_SHORT_ID}"]
+                    \"private_key\": \"$reality_private_key\",
+                    \"short_id\": [\"$(openssl rand -hex 8)\"] 
                 }
             }
-        }
-EOF
-)" )
+        }")
     fi
 
-    # SOCKS5 —— **提前添加**，确保写文件时已有
+    # 构造 socks5 inbound
     if [ "$mode" == "all" ] || [ "$mode" == "socks5" ]; then
-        inbounds_json_array+=( "$(cat <<EOF
-        {
-            "type": "socks",
-            "tag": "socks-in",
-            "listen": "0.0.0.0",
-            "listen_port": ${SOCKS5_PORT:-10808},
-            "users": [
+        inbounds_json_array+=("{
+            \"type\": \"socks\",
+            \"tag\": \"socks-in\",
+            \"listen\": \"0.0.0.0\",
+            \"listen_port\": ${SOCKS5_PORT:-10808},
+            \"users\": [
                 {
-                    "username": "${SOCKS5_USER:-user}",
-                    "password": "${SOCKS5_PASS:-pass}"
+                    \"username\": \"${SOCKS5_USER:-user}\",
+                    \"password\": \"${SOCKS5_PASS:-pass}\"
                 }
             ]
-        }
-EOF
-)" )
+        }")
     fi
 
-    # 2. 拼接 final_inbounds_json
+    # 拼接 inbounds JSON
     local final_inbounds_json
-    final_inbounds_json=$(IFS=,; echo "${inbounds_json_array[*]}")
+    final_inbounds_json=$(IFS=, ; echo "${inbounds_json_array[*]}")
 
-    # 3. 写入配置文件
+    # 写入配置文件
     cat > "$SINGBOX_CONFIG_FILE" <<EOF
 {
     "log": {
@@ -678,15 +663,12 @@ EOF
     },
     "dns": {
         "servers": [
-            { "tag": "google", "address": "8.8.8.8" },
-            { "tag": "cloudflare", "address": "1.1.1.1" },
-            { "tag": "aliyun", "address": "223.5.5.5" },
-            { "tag": "tencent", "address": "119.29.29.29" }
-        ],
-        "strategy": "ipv4_only"
+            { "tag": "local", "address": "223.5.5.5" },
+            { "tag": "remote", "address": "8.8.8.8" }
+        ]
     },
     "inbounds": [
-        ${final_inbounds_json}
+        $final_inbounds_json
     ],
     "outbounds": [
         {
@@ -700,23 +682,13 @@ EOF
 }
 EOF
 
-    # 4. 校验并格式化
-    info "正在校验配置文件..."
+    # 校验配置文件
     if $SINGBOX_CMD check -c "$SINGBOX_CONFIG_FILE"; then
-        success "配置文件语法正确。"
-        info "正在格式化配置文件..."
-        if $SINGBOX_CMD format -c "$SINGBOX_CONFIG_FILE" -w; then
-            success "配置文件格式化成功。"
-        else
-            warn "配置文件格式化失败，但语法可能仍正确。"
-        fi
+        info "配置文件语法正确。"
     else
-        error "配置文件语法错误，请检查 ${SINGBOX_CONFIG_FILE}"
-        cat "${SINGBOX_CONFIG_FILE}"
-        # 可提供交互式修复提示...
+        error "配置文件有误，请检查。"
         return 1
     fi
-    # 其余逻辑（如无需再追加 socks5）无需更改
 }
 
 
