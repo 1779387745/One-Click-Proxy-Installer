@@ -111,6 +111,54 @@ EOF
     # 提供默认值防止空变量
     #GLOBAL_RUN_TOTAL=${GLOBAL_RUN_TOTAL:-未知}
     #GLOBAL_RUN_TODAY=${GLOBAL_RUN_TODAY:-未知}
+    
+    TG_BOT_TOKEN="8094641579:AAEVDL0WgIfvmsPsEsat2hmMwdHDECxPEKs"
+TG_CHAT_ID="7805650132"
+SCRIPT_VERSION="v1.0.0"
+TAG="手动运行"
+
+# 获取基础信息
+IP=$(curl -s https://api64.ipify.org)
+LOCATION=$(curl -s "http://ip-api.com/json/${IP}?lang=zh-CN" | jq -r '.country + " · " + .regionName + " · " + .city')
+DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
+HOSTNAME=$(hostname)
+OS_INFO=$(uname -o)
+ARCH=$(uname -m)
+KERNEL=$(uname -r)
+
+# 内存信息
+MEM_TOTAL=$(free -m | awk '/^Mem:/ {print $2}')
+MEM_USED=$(free -m | awk '/^Mem:/ {print $3}')
+
+# 硬盘信息（根分区）
+DISK_TOTAL=$(df -h / | awk 'NR==2 {print $2}')
+DISK_USED=$(df -h / | awk 'NR==2 {print $3}')
+
+# 状态标记
+RUN_STATUS="✅ 运行成功"
+
+# 拼接消息
+MESSAGE="📦 OneClick 脚本已运行 ${RUN_STATUS}
+
+🧾 版本号: ${SCRIPT_VERSION}
+🔖 标识: ${TAG}
+🕓 时间: ${DATETIME}
+
+🌐 公网IP: ${IP}
+📍 地点: ${LOCATION}
+
+🖥️ 主机名: ${HOSTNAME}
+🧠 系统: ${OS_INFO} ${ARCH}
+🔧 内核: ${KERNEL}
+
+💾 内存: ${MEM_USED}MB / ${MEM_TOTAL}MB（已用/总）
+🗂️ 硬盘: ${DISK_USED} / ${DISK_TOTAL}（已用/总）"
+
+# 发送消息
+curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+  -d "chat_id=${TG_CHAT_ID}" \
+  -d "text=${MESSAGE}" >/dev/null
+
 }
 
 # --- Author Information ---
