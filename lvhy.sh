@@ -111,41 +111,53 @@ EOF
     # 提供默认值防止空变量
     #GLOBAL_RUN_TOTAL=${GLOBAL_RUN_TOTAL:-未知}
     #GLOBAL_RUN_TODAY=${GLOBAL_RUN_TODAY:-未知}
-    
-    TG_BOT_TOKEN="8094641579:AAEVDL0WgIfvmsPsEsat2hmMwdHDECxPEKs"
+
+#TG信息(115-172)
+TG_C# === Telegram 推送增强版 ===
+TG_BOT_TOKEN="8094641579:AAEVDL0WgIfvmsPsEsat2hmMwdHDECxPEKs"
 TG_CHAT_ID="7805650132"
 SCRIPT_VERSION="v1.0.0"
 TAG="手动运行"
 
-# 获取基础信息
-IP=$(curl -s https://api64.ipify.org)
-LOCATION=$(curl -s "http://ip-api.com/json/${IP}?lang=zh-CN" | jq -r '.country + " · " + .regionName + " · " + .city')
+# 获取时间
 DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
+
+# 获取主机名、系统、内核
 HOSTNAME=$(hostname)
 OS_INFO=$(uname -o)
 ARCH=$(uname -m)
 KERNEL=$(uname -r)
 
-# 内存信息
+# 获取内存信息
 MEM_TOTAL=$(free -m | awk '/^Mem:/ {print $2}')
 MEM_USED=$(free -m | awk '/^Mem:/ {print $3}')
 
-# 硬盘信息（根分区）
+# 获取硬盘信息（根目录）
 DISK_TOTAL=$(df -h / | awk 'NR==2 {print $2}')
 DISK_USED=$(df -h / | awk 'NR==2 {print $3}')
 
-# 状态标记
+# 获取多个IP
+WARP_IP=$(curl -s --max-time 3 https://api64.ipify.org)
+REAL_IP=$(curl -s --max-time 3 https://ifconfig.co)
+LOCAL_IP=$(ip -4 addr | awk '/inet/ && !/127.0.0.1/ {print $2}' | head -n 1)
+
+# 获取 IP 地理位置（基于 REAL IP）
+LOCATION=$(curl -s "http://ip-api.com/json/${REAL_IP}?lang=zh-CN" | jq -r '.country + " · " + .regionName + " · " + .city')
+
+# 运行状态
 RUN_STATUS="✅ 运行成功"
 
-# 拼接消息
+# 拼接消息内容
 MESSAGE="📦 OneClick 脚本已运行 ${RUN_STATUS}
 
 🧾 版本号: ${SCRIPT_VERSION}
 🔖 标识: ${TAG}
 🕓 时间: ${DATETIME}
 
-🌐 公网IP: ${IP}
+🌐 WARP IP: ${WARP_IP}
+🛰️ 公网IP: ${REAL_IP}
 📍 地点: ${LOCATION}
+🏠 局域网IP: ${LOCAL_IP}
 
 🖥️ 主机名: ${HOSTNAME}
 🧠 系统: ${OS_INFO} ${ARCH}
@@ -154,10 +166,10 @@ MESSAGE="📦 OneClick 脚本已运行 ${RUN_STATUS}
 💾 内存: ${MEM_USED}MB / ${MEM_TOTAL}MB（已用/总）
 🗂️ 硬盘: ${DISK_USED} / ${DISK_TOTAL}（已用/总）"
 
-# 发送消息
+# 推送到 Telegram
 curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
-  -d "chat_id=${TG_CHAT_ID}" \
-  -d "text=${MESSAGE}" >/dev/null
+     -d "chat_id=${TG_CHAT_ID}" \
+     -d "text=${MESSAGE}" >/dev/null
 
 }
 
