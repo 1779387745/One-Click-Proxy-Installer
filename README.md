@@ -15,7 +15,7 @@
 ## 推荐工具箱/三方客户端/实用网站🌟
 
 <details>
-  <summary><<<安卓/iOS/PC 推荐客户端、ssh工具、实用网站推荐：>>>此行文字可点击</summary>
+  <summary><<<安卓/iOS/PC 推荐客户端、ssh工具、实用网站推荐：>>>此行文字点击可扩展</summary>
 
 ## VPS仅IPV6/IPV4 脚本推荐
 
