@@ -191,7 +191,6 @@ print_author_info() {
     echo -e "${BOLD}${YELLOW} 项目名称: One-Click-Proxy-Installer ${NC}"
     echo -e " ${YELLOW}作者:${NC}      ${GREEN}${AUTHOR_NAME}${NC}"
     echo -e " ${YELLOW}快捷启动指令:${NC} ${GREEN}${QUICK_CMD_NAME}${NC}"
-    echo -e " ${YELLOW}本机今日运行次数:${NC} ${GREEN}${RUN_TODAY}${NC}   ${YELLOW}本机总运行次数:${NC} ${GREEN}${RUN_TOTAL}${NC}"
     echo -e " ${YELLOW}全网今日运行次数:${NC} ${CYAN}${GLOBAL_RUN_TODAY}${NC}   ${YELLOW}全网总运行次数:${NC} ${CYAN}${GLOBAL_RUN_TOTAL}${NC}"
 }
 
