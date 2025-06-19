@@ -6,6 +6,7 @@ install_dependencies() {
         INSTALL_CMD="sudo yum install -y"
     elif command -v apt >/dev/null 2>&1; then
         PM="apt"
+        INSTALL_CMD="sudo apt install -y"
     elif command -v dnf >/dev/null 2>&1; then
         PM="dnf"
         INSTALL_CMD="sudo dnf install -y"
@@ -15,29 +16,38 @@ install_dependencies() {
     fi
 
     DEPENDENCIES=(curl wget git jq sed grep cut bc unzip)
+    MISSING_DEPS=()
 
+    # 收集缺失依赖
     for cmd in "${DEPENDENCIES[@]}"; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
-            echo "📦 缺少依赖：$cmd，正在尝试安装..."
-
-            if [ "$PM" = "apt" ]; then
-                if [ "$FORCE_UPDATE" = true ] || [ ! -f "/tmp/.apt_updated" ]; then
-                    echo -e "${BLUE}[INFO]${NC} 正在执行 apt update（首次运行）..."
-                    sudo apt update && touch /tmp/.apt_updated
-                else
-                    echo -e "${BLUE}[INFO]${NC} 已跳过 apt update，使用缓存加速安装..."
-                fi
-                sudo apt install -y "$cmd"
-            else
-                $INSTALL_CMD "$cmd"
-            fi
-
-            if [ $? -ne 0 ]; then
-                echo "❌ 安装 $cmd 失败，请手动安装后重试。"
-                exit 1
-            fi
+            MISSING_DEPS+=("$cmd")
         fi
     done
+
+    # 如果有缺失
+    if [ ${#MISSING_DEPS[@]} -ne 0 ]; then
+        echo "📦 检测到缺失依赖项: ${MISSING_DEPS[*]}"
+
+        # apt 特殊处理：首次 update
+        if [ "$PM" = "apt" ]; then
+            if [ "$FORCE_UPDATE" = true ] || [ ! -f "/tmp/.apt_updated" ]; then
+                echo -e "${BLUE}[INFO]${NC} 正在执行 apt update（首次运行）..."
+                sudo apt update && touch /tmp/.apt_updated
+            else
+                echo -e "${BLUE}[INFO]${NC} 已跳过 apt update，使用缓存加速安装..."
+            fi
+        fi
+
+        # 一次性安装所有缺失依赖
+        $INSTALL_CMD "${MISSING_DEPS[@]}"
+        if [ $? -ne 0 ]; then
+            echo "❌ 有依赖安装失败，请手动安装后重试：${MISSING_DEPS[*]}"
+            exit 1
+        fi
+    else
+        echo "✅ 所有依赖均已安装。"
+    fi
 }
 
 #!/bin/bash
