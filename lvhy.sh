@@ -93,6 +93,7 @@ EOF
     # 上传并获取全局统计数据
 STATS_URL="https://kfc3.rf.gd/oneclick_stats.php?"
 STATS_RESPONSE=$(curl -s -A "Mozilla/5.0" "$STATS_URL")
+echo "[DEBUG] curl response: $STATS_RESPONSE"
 
     # 尝试解析 JSON（需要 jq，否则使用 grep+cut）
     if command -v jq >/dev/null 2>&1 && [[ "$STATS_RESPONSE" == *"total"* ]]; then
