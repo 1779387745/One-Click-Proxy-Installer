@@ -1340,8 +1340,6 @@ toolbox_menu() {
 # --- Main Menu ---
 show_menu() {
     clear
-    echo -e "${BLUE}[INFO]${NC} 本脚本全网运行总次数：${YELLOW}${GLOBAL_RUN_TOTAL:-未知}${NC}"
-echo -e "${BLUE}[INFO]${NC} 今日已运行次数：${YELLOW}${GLOBAL_RUN_TODAY:-未知}${NC}"
     print_author_info
     echo -e "${MAGENTA}${BOLD}=================【安装相关】==================${NC}"
     echo "  1. 安装 Hysteria2 + Reality (共存)"
