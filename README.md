@@ -107,7 +107,7 @@ sudo bash lvhy.sh
 
 **3. 按提示选择菜单，输入数字即可完成安装和管理。**
 
-- 1：一键安装 Hysteria2 + Reality（共存）
+- 1：一键安装 全协议（all共存）
 - 2：只装 Hysteria2
 - 3：只装 Reality (VLESS)
 - 其他选项可管理服务、查看/编辑配置、卸载等
