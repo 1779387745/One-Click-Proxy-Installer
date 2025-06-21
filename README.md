@@ -45,7 +45,7 @@ bash <(curl -sL kejilion.sh)#建议快捷命令改为 i
   
 - 下载并安装SSH连接工具:
   - [Finalshell电脑版:](https://www.hostbuf.com/t/988.html)稳定好用！基本人手一个。
-  - [WindTerm](https://github.com/kingToolbox/WindTerm/releases/tag/2.7.0)
+  - [WindTerm](https://github.com/kingToolbox/WindTerm/releases/tag/2.7.0)开源免费
 
 - 安卓/iOS/PC 推荐客户端：
   - [Karing](https://github.com/KaringX/karing/releases)（全平台免费开源，强烈推荐）
