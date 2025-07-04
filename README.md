@@ -1,4 +1,7 @@
-
+<p align="center">
+	<img src="/img/logo.svg" style="width: 200px"></img>
+</p>
+<p align="center">
 
 
 # One-Click-Proxy-Installer 一键安装脚本
