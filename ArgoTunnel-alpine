@@ -3,8 +3,11 @@ set -eu
 
 # =====================================================
 # 非 root Alpine 2.0 容器版
-# 自动生成 VMess/VLESS 节点 + Argo Tunnel + 快捷管理命令
+# 交互式生成 VMess/VLESS 节点 + Argo Tunnel + 面板式快捷管理
 # =====================================================
+
+die(){ echo "✖ $*" >&2; exit 1; }
+info(){ echo "→ $*"; }
 
 HOME=${HOME:-/root}
 BIN_DIR="$HOME/.local/bin"
@@ -14,9 +17,6 @@ CLOUD_BIN="$BIN_DIR/cloudflared"
 CONFIG_FILE="$HOME/.cloudflared/config.yml"
 TOKEN_FILE="$HOME/.cloudflared/token"
 NODE_DIR="$HOME/.v2ray"
-
-die(){ echo "✖ $*" >&2; exit 1; }
-info(){ echo "→ $*"; }
 
 # ---------------------------
 # 安装 cloudflared
@@ -35,24 +35,28 @@ install_cloudflared(){
 }
 
 # ---------------------------
-# 生成节点
+# 生成节点（交互式）
 # ---------------------------
 generate_node(){
+  read -rp "请输入域名 (Domain)： " DOMAIN
+  read -rp "请输入 Tunnel Token： " TUNNEL_TOKEN
+  read -rp "协议 (vmess/vless，默认 vmess)： " PROT
   PROT=${PROT:-vmess}
-  DOMAIN=${DOMAIN:-example.com}
+  read -rp "WebSocket 路径 (默认 /)： " WS_PATH
   WS_PATH=${WS_PATH:-/}
-  TUNNEL_TOKEN=${TUNNEL_TOKEN:-""}
+  read -rp "生成节点数量 (默认 1)： " NUM
   NUM=${NUM:-1}
 
-  [ -n "$TUNNEL_TOKEN" ] || die "请在环境变量 TUNNEL_TOKEN 设置 Cloudflare Tunnel Token"
-
-  NODE_PORT=$((RANDOM % 10000 + 30000))
-  UUID=$(cat /proc/sys/kernel/random/uuid)
-  NODE_CONF="$NODE_DIR/$PROT-$NODE_PORT.json"
+  install_cloudflared
   mkdir -p "$NODE_DIR"
 
-  # xray 节点配置
-  cat > "$NODE_CONF" <<EOF
+  for i in $(seq 1 "$NUM"); do
+    NODE_PORT=$((RANDOM % 10000 + 30000))
+    UUID=$(cat /proc/sys/kernel/random/uuid)
+    NODE_CONF="$NODE_DIR/$PROT-$NODE_PORT.json"
+
+    # xray 节点配置
+    cat > "$NODE_CONF" <<EOF
 {
   "inbounds": [{
     "port": $NODE_PORT,
@@ -62,12 +66,12 @@ generate_node(){
   }]
 }
 EOF
-  # Tunnel token
-  printf "%s" "$TUNNEL_TOKEN" > "$TOKEN_FILE"
-  chmod 600 "$TOKEN_FILE"
 
-  # cloudflared 配置
-  cat > "$CONFIG_FILE" <<EOF
+    # cloudflared 配置
+    printf "%s" "$TUNNEL_TOKEN" > "$TOKEN_FILE"
+    chmod 600 "$TOKEN_FILE"
+
+    cat > "$CONFIG_FILE" <<EOF
 ingress:
   - hostname: $DOMAIN
     service: tcp://127.0.0.1:$NODE_PORT
@@ -76,35 +80,20 @@ ingress:
   - service: http_status:404
 EOF
 
-  info "节点生成完成: $NODE_CONF"
-  info "Argo Tunnel 配置: $CONFIG_FILE"
-
-  # 输出节点链接
-  echo
-  echo "================ 节点链接 ================="
-  for i in $(seq 1 "$NUM"); do
-    if [ "$PROT" = "vmess" ]; then
-      VMESS_JSON=$(printf '{
-        "v":"2","ps":"Argo-VMess",
-        "add":"%s","port":"%s",
-        "id":"%s","aid":"0",
-        "net":"ws","type":"none",
-        "host":"%s","path":"%s",
-        "tls":"tls"}' "$DOMAIN" "$NODE_PORT" "$UUID" "$DOMAIN" "$WS_PATH")
-      VMESS_LINK=$(echo -n "$VMESS_JSON" | base64 -w0)
-      echo "vmess://$VMESS_LINK"
-    else
-      echo "vless://$UUID@$DOMAIN:$NODE_PORT?type=ws&security=tls&path=$WS_PATH#$DOMAIN"
-    fi
+    info "节点 $i 生成完成: $NODE_CONF"
   done
-  echo "=========================================="
+
+  info "全部节点生成完成！"
 }
 
 # ---------------------------
-# 启动 cloudflared + xray
+# 启动 cloudflared
 # ---------------------------
 start_node(){
   install_cloudflared
+  if [ ! -f "$CONFIG_FILE" ]; then
+    die "未检测到配置文件，请先生成节点 (ss gen)"
+  fi
   nohup "$CLOUD_BIN" tunnel --config "$CONFIG_FILE" run --token-file "$TOKEN_FILE" >/dev/null 2>&1 &
   sleep 2
   info "Cloudflared 已启动"
@@ -116,6 +105,14 @@ start_node(){
 stop_node(){
   pkill -f "$CLOUD_BIN" || true
   info "Cloudflared 已停止"
+}
+
+# ---------------------------
+# 重启节点
+# ---------------------------
+restart_node(){
+  stop_node
+  start_node
 }
 
 # ---------------------------
@@ -133,9 +130,14 @@ uninstall_node(){
 show_links(){
   for NODE_FILE in "$NODE_DIR"/*.json; do
     [ -f "$NODE_FILE" ] || continue
-    UUID=$(jq -r '.inbounds[0].settings.clients[0].id' "$NODE_FILE")
+    UUID=$(jq -r '.inbounds[0].settings.clients[0].id' "$NODE_FILE" 2>/dev/null || echo "")
     PORT=$(jq -r '.inbounds[0].port' "$NODE_FILE")
-    PROT=$(jq -r '.inbounds[0].protocol' "$NODE_FILE")
+    PROT=$(jq -r '.inbounds[0].protocol' "$NODE_FILE" 2>/dev/null || echo "vmess")
+    if [ -z "$UUID" ]; then
+      UUID=$(cat /proc/sys/kernel/random/uuid)
+    fi
+    DOMAIN=${DOMAIN:-example.com}
+    WS_PATH=${WS_PATH:-/}
     if [ "$PROT" = "vmess" ]; then
       VMESS_JSON=$(printf '{
         "v":"2","ps":"Argo-VMess",
@@ -153,14 +155,57 @@ show_links(){
 }
 
 # ---------------------------
-# 主逻辑（快捷命令接口）
+# 面板式操作菜单
 # ---------------------------
-case "${1:-}" in
+panel_menu(){
+  while true; do
+    echo
+    echo "==================== ss 面板 ===================="
+    echo "1) 生成节点"
+    echo "2) 启动节点"
+    echo "3) 查看节点链接"
+    echo "4) 停止节点"
+    echo "5) 重启节点"
+    echo "6) 卸载节点"
+    echo "0) 退出"
+    echo "==============================================="
+    read -rp "请选择操作 [0-6]: " choice
+    case "$choice" in
+      1) generate_node ;;
+      2) start_node ;;
+      3) show_links ;;
+      4) stop_node ;;
+      5) restart_node ;;
+      6) uninstall_node ;;
+      0) exit 0 ;;
+      *) echo "无效选项，请重新输入" ;;
+    esac
+  done
+}
+
+# ---------------------------
+# 快捷命令 ss
+# ---------------------------
+SS_BIN="$BIN_DIR/ss"
+if [ ! -f "$SS_BIN" ]; then
+  cat > "$SS_BIN" <<'EOF'
+#!/bin/sh
+"$HOME/ArgoTunnel-alpine" panel
+EOF
+  chmod +x "$SS_BIN"
+  info "快捷命令已创建: ss (放在 $BIN_DIR)"
+fi
+
+# ---------------------------
+# 命令行参数
+# ---------------------------
+case "${1:-panel}" in
   gen)      generate_node ;;
   start)    start_node ;;
   stop)     stop_node ;;
-  restart)  stop_node; start_node ;;
+  restart)  restart_node ;;
   links)    show_links ;;
   uninstall)uninstall_node ;;
-  *) echo "用法: ss [gen|start|stop|restart|links|uninstall]" ;;
+  panel)    panel_menu ;;
+  *)        panel_menu ;;
 esac
