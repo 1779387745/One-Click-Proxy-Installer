@@ -1,211 +1,139 @@
 #!/bin/sh
 set -eu
 
-# =====================================================
-# 非 root Alpine 2.0 容器版
-# 交互式生成 VMess/VLESS 节点 + Argo Tunnel + 面板式快捷管理
-# =====================================================
-
 die(){ echo "✖ $*" >&2; exit 1; }
 info(){ echo "→ $*"; }
 
 HOME=${HOME:-/root}
-BIN_DIR="$HOME/.local/bin"
-mkdir -p "$BIN_DIR" "$HOME/.cloudflared" "$HOME/.v2ray"
+BIN="$HOME/.local/bin"
+CF="$HOME/.cloudflared"
+DB="$HOME/.v2ray"
+NODE_DB="$DB/nodes.db"
 
-CLOUD_BIN="$BIN_DIR/cloudflared"
-CONFIG_FILE="$HOME/.cloudflared/config.yml"
-TOKEN_FILE="$HOME/.cloudflared/token"
-NODE_DIR="$HOME/.v2ray"
+mkdir -p "$BIN" "$CF" "$DB"
 
-# ---------------------------
-# 安装 cloudflared
-# ---------------------------
+CLOUD="$BIN/cloudflared"
+CFG="$CF/config.yml"
+TOKEN="$CF/token"
+
+# ================= cloudflared =================
 install_cloudflared(){
-  [ -x "$CLOUD_BIN" ] && return
-  info "安装 cloudflared..."
+  [ -x "$CLOUD" ] && return
+  info "下载 cloudflared（无 root）"
   ARCH=$(uname -m)
   case "$ARCH" in
     x86_64) FILE="cloudflared-linux-amd64" ;;
     aarch64) FILE="cloudflared-linux-arm64" ;;
-    *) die "不支持架构: $ARCH" ;;
+    *) die "不支持架构 $ARCH" ;;
   esac
-  wget -q -O "$CLOUD_BIN" "https://github.com/cloudflare/cloudflared/releases/latest/download/$FILE"
-  chmod +x "$CLOUD_BIN"
+  wget -q -O "$CLOUD" \
+    "https://github.com/cloudflare/cloudflared/releases/latest/download/$FILE" \
+    || die "cloudflared 下载失败"
+  chmod +x "$CLOUD"
 }
 
-# ---------------------------
-# 生成节点（交互式）
-# ---------------------------
-generate_node(){
-  read -rp "请输入域名 (Domain)： " DOMAIN
-  read -rp "请输入 Tunnel Token： " TUNNEL_TOKEN
-  read -rp "协议 (vmess/vless，默认 vmess)： " PROT
+# ================= 生成节点 =================
+gen_node(){
+  read -rp "域名 (如 xxx.example.com): " DOMAIN
+  read -rp "Tunnel Token: " TUN
+  read -rp "协议 vmess / vless [vmess]: " PROT
   PROT=${PROT:-vmess}
-  read -rp "WebSocket 路径 (默认 /)： " WS_PATH
-  WS_PATH=${WS_PATH:-/}
-  read -rp "生成节点数量 (默认 1)： " NUM
-  NUM=${NUM:-1}
+  read -rp "WS 路径 [/]: " WSPATH
+  WSPATH=${WSPATH:-/}
 
   install_cloudflared
-  mkdir -p "$NODE_DIR"
 
-  for i in $(seq 1 "$NUM"); do
-    NODE_PORT=$((RANDOM % 10000 + 30000))
-    UUID=$(cat /proc/sys/kernel/random/uuid)
-    NODE_CONF="$NODE_DIR/$PROT-$NODE_PORT.json"
+  PORT=$((RANDOM%10000+30000))
+  UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen)
 
-    # xray 节点配置
-    cat > "$NODE_CONF" <<EOF
-{
-  "inbounds": [{
-    "port": $NODE_PORT,
-    "protocol": "$PROT",
-    "settings": {"clients":[{"id":"$UUID","alterId":0}]},
-    "streamSettings":{"network":"ws","wsSettings":{"path":"$WS_PATH"}}
-  }]
-}
-EOF
+  printf "%s\n" "$DOMAIN|$PORT|$UUID|$PROT|$WSPATH" >> "$NODE_DB"
+  printf "%s" "$TUN" > "$TOKEN"
+  chmod 600 "$TOKEN"
 
-    # cloudflared 配置
-    printf "%s" "$TUNNEL_TOKEN" > "$TOKEN_FILE"
-    chmod 600 "$TOKEN_FILE"
+  printf "ingress:\n  - hostname: %s\n    service: tcp://127.0.0.1:%s\n  - service: http_status:404\n" \
+    "$DOMAIN" "$PORT" > "$CFG"
 
-    cat > "$CONFIG_FILE" <<EOF
-ingress:
-  - hostname: $DOMAIN
-    service: tcp://127.0.0.1:$NODE_PORT
-    originRequest:
-      noTLSVerify: true
-  - service: http_status:404
-EOF
+  nohup "$CLOUD" tunnel run \
+    --config "$CFG" \
+    --token-file "$TOKEN" \
+    >/dev/null 2>&1 &
 
-    info "节点 $i 生成完成: $NODE_CONF"
-  done
-
-  info "全部节点生成完成！"
+  info "节点已启动"
+  show_nodes
 }
 
-# ---------------------------
-# 启动 cloudflared
-# ---------------------------
-start_node(){
-  install_cloudflared
-  if [ ! -f "$CONFIG_FILE" ]; then
-    die "未检测到配置文件，请先生成节点 (ss gen)"
-  fi
-  nohup "$CLOUD_BIN" tunnel --config "$CONFIG_FILE" run --token-file "$TOKEN_FILE" >/dev/null 2>&1 &
-  sleep 2
-  info "Cloudflared 已启动"
-}
-
-# ---------------------------
-# 停止 cloudflared
-# ---------------------------
-stop_node(){
-  pkill -f "$CLOUD_BIN" || true
-  info "Cloudflared 已停止"
-}
-
-# ---------------------------
-# 重启节点
-# ---------------------------
-restart_node(){
-  stop_node
-  start_node
-}
-
-# ---------------------------
-# 卸载节点
-# ---------------------------
-uninstall_node(){
-  stop_node
-  rm -rf "$NODE_DIR" "$HOME/.cloudflared" "$CLOUD_BIN"
-  info "所有节点及 cloudflared 已卸载"
-}
-
-# ---------------------------
-# 查看节点链接
-# ---------------------------
-show_links(){
-  for NODE_FILE in "$NODE_DIR"/*.json; do
-    [ -f "$NODE_FILE" ] || continue
-    UUID=$(jq -r '.inbounds[0].settings.clients[0].id' "$NODE_FILE" 2>/dev/null || echo "")
-    PORT=$(jq -r '.inbounds[0].port' "$NODE_FILE")
-    PROT=$(jq -r '.inbounds[0].protocol' "$NODE_FILE" 2>/dev/null || echo "vmess")
-    if [ -z "$UUID" ]; then
-      UUID=$(cat /proc/sys/kernel/random/uuid)
-    fi
-    DOMAIN=${DOMAIN:-example.com}
-    WS_PATH=${WS_PATH:-/}
-    if [ "$PROT" = "vmess" ]; then
-      VMESS_JSON=$(printf '{
-        "v":"2","ps":"Argo-VMess",
-        "add":"%s","port":"%s",
-        "id":"%s","aid":"0",
-        "net":"ws","type":"none",
-        "host":"%s","path":"%s",
-        "tls":"tls"}' "$DOMAIN" "$PORT" "$UUID" "$DOMAIN" "$WS_PATH")
-      VMESS_LINK=$(echo -n "$VMESS_JSON" | base64 -w0)
-      echo "vmess://$VMESS_LINK"
+# ================= 查看节点 =================
+show_nodes(){
+  [ -f "$NODE_DB" ] || { echo "暂无节点"; return; }
+  echo "========= 节点 ========="
+  while IFS='|' read -r D P U T PA; do
+    if [ "$T" = "vmess" ]; then
+      JSON=$(printf '{"v":"2","ps":"Argo","add":"%s","port":"%s","id":"%s","aid":"0","net":"ws","type":"none","host":"%s","path":"%s","tls":"tls"}' \
+        "$D" "$P" "$U" "$D" "$PA")
+      echo "vmess://$(printf "%s" "$JSON" | base64 | tr -d '\n')"
     else
-      echo "vless://$UUID@$DOMAIN:$PORT?type=ws&security=tls&path=$WS_PATH#$DOMAIN"
+      echo "vless://$U@$D:$P?type=ws&security=tls&path=$PA#$D"
     fi
-  done
+  done < "$NODE_DB"
+  echo "========================"
 }
 
-# ---------------------------
-# 面板式操作菜单
-# ---------------------------
-panel_menu(){
-  while true; do
+# ================= 控制 =================
+start_cf(){
+  [ -f "$CFG" ] || die "未生成节点"
+  nohup "$CLOUD" tunnel run \
+    --config "$CFG" \
+    --token-file "$TOKEN" \
+    >/dev/null 2>&1 &
+  info "cloudflared 已启动"
+}
+
+stop_cf(){
+  pkill -f cloudflared 2>/dev/null || true
+  info "cloudflared 已停止"
+}
+
+restart_cf(){
+  stop_cf
+  start_cf
+}
+
+uninstall_all(){
+  stop_cf
+  rm -rf "$DB" "$CF" "$CLOUD"
+  info "已完全卸载"
+}
+
+# ================= 面板 =================
+panel(){
+  while :; do
     echo
-    echo "==================== ss 面板 ===================="
+    echo "=========== ss 面板 ==========="
     echo "1) 生成节点"
-    echo "2) 启动节点"
-    echo "3) 查看节点链接"
-    echo "4) 停止节点"
-    echo "5) 重启节点"
-    echo "6) 卸载节点"
+    echo "2) 启动"
+    echo "3) 查看节点"
+    echo "4) 停止"
+    echo "5) 重启"
+    echo "6) 卸载"
     echo "0) 退出"
-    echo "==============================================="
-    read -rp "请选择操作 [0-6]: " choice
-    case "$choice" in
-      1) generate_node ;;
-      2) start_node ;;
-      3) show_links ;;
-      4) stop_node ;;
-      5) restart_node ;;
-      6) uninstall_node ;;
+    read -rp "请选择 [0-6]: " C
+    case "$C" in
+      1) gen_node ;;
+      2) start_cf ;;
+      3) show_nodes ;;
+      4) stop_cf ;;
+      5) restart_cf ;;
+      6) uninstall_all ;;
       0) exit 0 ;;
-      *) echo "无效选项，请重新输入" ;;
     esac
   done
 }
 
-# ---------------------------
-# 快捷命令 ss
-# ---------------------------
-SS_BIN="$BIN_DIR/ss"
-if [ ! -f "$SS_BIN" ]; then
-  cat > "$SS_BIN" <<'EOF'
-#!/bin/sh
-"$HOME/ArgoTunnel-alpine" panel
-EOF
-  chmod +x "$SS_BIN"
-  info "快捷命令已创建: ss (放在 $BIN_DIR)"
+# ================= ss 快捷命令 =================
+if [ ! -x "$BIN/ss" ]; then
+  printf '#!/bin/sh\n"%s/ArgoTunnel-alpine"\n' "$HOME" > "$BIN/ss"
+  chmod +x "$BIN/ss"
+  info "快捷命令 ss 已创建"
 fi
 
-# ---------------------------
-# 命令行参数
-# ---------------------------
-case "${1:-panel}" in
-  gen)      generate_node ;;
-  start)    start_node ;;
-  stop)     stop_node ;;
-  restart)  restart_node ;;
-  links)    show_links ;;
-  uninstall)uninstall_node ;;
-  panel)    panel_menu ;;
-  *)        panel_menu ;;
-esac
+panel
