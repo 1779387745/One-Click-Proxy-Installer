@@ -115,12 +115,7 @@ sudo bash lvhy.sh
 **4. 安装完成后，终端会显示所有节点和二维码，直接扫码或复制即可食用。**
 
 ---
-**套argo**
-```bash
-apk add --no-cache curl
-sh <(curl -fsSL https://raw.githubusercontent.com/shangguancaiyun/One-Click-Proxy-Installer/89a5b972c95f7e611498b3041d1508fecf7923c4/argo-alpine.sh)
 
----
 
 ## 常见问题
 
