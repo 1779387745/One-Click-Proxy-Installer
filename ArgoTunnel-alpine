@@ -1,266 +1,166 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-# ======================================================
-# ArgoTunnel + VMess/VLESS 一键安装脚本 (Alpine)
-# ======================================================
+# =====================================================
+# 非 root Alpine 2.0 容器版
+# 自动生成 VMess/VLESS 节点 + Argo Tunnel + 快捷管理命令
+# =====================================================
+
+HOME=${HOME:-/root}
+BIN_DIR="$HOME/.local/bin"
+mkdir -p "$BIN_DIR" "$HOME/.cloudflared" "$HOME/.v2ray"
+
+CLOUD_BIN="$BIN_DIR/cloudflared"
+CONFIG_FILE="$HOME/.cloudflared/config.yml"
+TOKEN_FILE="$HOME/.cloudflared/token"
+NODE_DIR="$HOME/.v2ray"
 
 die(){ echo "✖ $*" >&2; exit 1; }
 info(){ echo "→ $*"; }
 
-IS_ROOT=false
-[ "$(id -u)" -eq 0 ] && IS_ROOT=true
-
-# 颜色
-red='\033[0;31m'
-green='\033[0;32m'
-yellow='\033[1;33m'
-cyan='\033[1;36m'
-bold='\033[1m'
-re='\033[0m'
-
-clear
-echo -e "${cyan}╔══════════════════════════════════════════╗"
-echo "║   🚀 VMess/VLESS + Argo Tunnel 安装器     ║"
-echo "╚══════════════════════════════════════════╝${re}"
-
-# ===============================================================
-# 菜单
-# ===============================================================
-echo -e "${bold}${green}1) 生成节点 + Argo Tunnel${re}"
-echo -e "${bold}${red}2) 卸载 Argo Tunnel${re}"
-echo -e "${bold}${yellow}3) 退出${re}"
-
-while true; do
-  read -r -p "$(echo -e "${yellow}→ 请选择操作 (1/2/3): ${re}")" ACTION
-  case "$ACTION" in
-    1) break ;;
-    2) ACTION="uninstall"; break ;;
-    3) exit 0 ;;
-    *) echo -e "${red}✖ 无效选择${re}" ;;
-  esac
-done
-
-# ===============================================================
-# 卸载逻辑
-# ===============================================================
-if [ "$ACTION" = "uninstall" ]; then
-  echo "⚠️ 卸载 Argo Tunnel..."
-  if $IS_ROOT; then
-    SERVICE_FILE="/etc/systemd/system/cloudflared.service"
-    CRED_DIR="/root/.cloudflared"
-    BIN_PATH="/usr/local/bin/cloudflared"
-    systemctl disable --now cloudflared 2>/dev/null || true
-    rm -f "$SERVICE_FILE"
-    systemctl daemon-reload || true
-  else
-    SERVICE_FILE="$HOME/.config/systemd/user/cloudflared.service"
-    CRED_DIR="$HOME/.cloudflared"
-    BIN_PATH="$HOME/.local/bin/cloudflared"
-    systemctl --user disable --now cloudflared 2>/dev/null || true
-    rm -f "$SERVICE_FILE"
-    systemctl --user daemon-reload || true
-  fi
-  rm -rf "$CRED_DIR" "$BIN_PATH"
-  info "✅ 已卸载 Argo Tunnel"
-  exit 0
-fi
-
-# ===============================================================
-# 安装必要工具
-# ===============================================================
-info "检测系统并安装必要工具..."
-if [ -f /etc/alpine-release ]; then
-  apk add --no-cache curl wget bash coreutils || true
-elif [ -f /etc/debian_version ]; then
-  apt update -y && apt install -y curl wget bash coreutils || true
-elif [ -f /etc/redhat-release ]; then
-  yum install -y curl wget bash coreutils || true
-else
-  die "不支持的系统类型"
-fi
-
-# ===============================================================
-# 生成 VMess/VLESS 节点
-# ===============================================================
-echo "=== 生成 VMess/VLESS 节点 ==="
-while true; do
-  echo "选择协议: 1) VMess 2) VLESS"
-  read -r -p "选择 (默认 1): " PROT
-  PROT=${PROT:-1}
-  [[ "$PROT" =~ ^[12]$ ]] && break
-done
-PROT_NAME=$([ "$PROT" = 1 ] && echo "vmess" || echo "vless")
-
-read -r -p "请输入节点本地监听端口 (默认 443): " NODE_PORT
-NODE_PORT=${NODE_PORT:-443}
-read -r -p "WebSocket 路径 (默认 /): " WS_PATH
-WS_PATH=${WS_PATH:-/}
-[[ "$WS_PATH" != /* ]] && WS_PATH="/$WS_PATH"
-UUID=$(cat /proc/sys/kernel/random/uuid)
-
-echo
-info "生成节点配置:"
-echo "协议: $PROT_NAME"
-echo "端口: $NODE_PORT"
-echo "WS路径: $WS_PATH"
-echo "UUID: $UUID"
-
-# ===============================================================
-# Argo Tunnel 映射配置
-# ===============================================================
-read -r -p "请输入绑定的域名 (Public Hostname): " DOMAIN
-read -r -p "协议类型 (http/https/tcp 默认 http): " PROTO
-PROTO=${PROTO:-http}
-echo "选择传输方式: 1) WebSocket 2) gRPC 3) TCP"
-read -r -p "选择 (默认 1): " STREAM
-STREAM=${STREAM:-1}
-case "$STREAM" in
-  1) STREAM_TYPE="ws" ;;
-  2) STREAM_TYPE="grpc" ;;
-  3) STREAM_TYPE="tcp" ;;
-  *) STREAM_TYPE="ws" ;;
-esac
-
-# ===============================================================
+# ---------------------------
 # 安装 cloudflared
-# ===============================================================
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64|amd64) FILE="cloudflared-linux-amd64" ;;
-  aarch64|arm64) FILE="cloudflared-linux-arm64" ;;
-  *) die "不支持的架构: $ARCH" ;;
-esac
-
-DEST="$([ "$IS_ROOT" = true ] && echo "/usr/local/bin" || echo "$HOME/.local/bin")"
-mkdir -p "$DEST"
-wget -q -O "${DEST}/cloudflared" "https://github.com/cloudflare/cloudflared/releases/latest/download/${FILE}" || die "下载 cloudflared 失败"
-chmod +x "${DEST}/cloudflared"
-info "✅ cloudflared 安装完成"
-
-CLOUD_BIN="${DEST}/cloudflared"
-CRED_DIR="$([ "$IS_ROOT" = true ] && echo "/root/.cloudflared" || echo "$HOME/.cloudflared")"
-CONFIG_FILE="$CRED_DIR/config.yml"
-TOKEN_FILE="$CRED_DIR/token"
-mkdir -p "$CRED_DIR"
-chmod 700 "$CRED_DIR"
-
-while true; do
-  read -r -p "请输入 Cloudflare Tunnel Token (eyJ开头): " TUNNEL_TOKEN
-  [[ -n "$TUNNEL_TOKEN" ]] && break || echo -e "${red}Token不能为空${re}"
-done
-printf "%s" "$TUNNEL_TOKEN" > "$TOKEN_FILE"
-chmod 600 "$TOKEN_FILE"
-
-# ===============================================================
-# 生成 config.yml
-# ===============================================================
-info "生成 Argo Tunnel 配置文件 $CONFIG_FILE"
-{
-  echo "ingress:"
-  case "$PROTO" in
-    tcp) SERVICE="tcp://localhost:${NODE_PORT}" ;;
-    http) SERVICE="http://localhost:${NODE_PORT}" ;;
-    https) SERVICE="https://localhost:${NODE_PORT}" ;;
-    *) SERVICE="http://localhost:${NODE_PORT}" ;;
+# ---------------------------
+install_cloudflared(){
+  [ -x "$CLOUD_BIN" ] && return
+  info "安装 cloudflared..."
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64) FILE="cloudflared-linux-amd64" ;;
+    aarch64) FILE="cloudflared-linux-arm64" ;;
+    *) die "不支持架构: $ARCH" ;;
   esac
-  echo "  - hostname: ${DOMAIN}"
-  echo "    service: ${SERVICE}"
-  echo "    originRequest:"
-  echo "      noTLSVerify: true"
-  echo "      httpHostHeader: ${DOMAIN}"
-  if [ "$STREAM_TYPE" = "ws" ] && { [ "$PROTO" = "http" ] || [ "$PROTO" = "https" ]; }; then
-    echo "      headers:"
-    echo "        Connection: Upgrade"
-    echo "        Upgrade: websocket"
-  fi
-  echo "  - service: http_status:404"
-} > "$CONFIG_FILE"
-chmod 600 "$CONFIG_FILE"
+  wget -q -O "$CLOUD_BIN" "https://github.com/cloudflare/cloudflared/releases/latest/download/$FILE"
+  chmod +x "$CLOUD_BIN"
+}
 
-# ===============================================================
-# systemd 服务
-# ===============================================================
-EXEC_CMD="$CLOUD_BIN tunnel run --token-file ${TOKEN_FILE}"
+# ---------------------------
+# 生成节点
+# ---------------------------
+generate_node(){
+  PROT=${PROT:-vmess}
+  DOMAIN=${DOMAIN:-example.com}
+  WS_PATH=${WS_PATH:-/}
+  TUNNEL_TOKEN=${TUNNEL_TOKEN:-""}
+  NUM=${NUM:-1}
 
-if $IS_ROOT; then
-  SERVICE_FILE="/etc/systemd/system/cloudflared.service"
-  cat > "$SERVICE_FILE" <<EOF
-[Unit]
-Description=Cloudflare Tunnel
-After=network-online.target
-[Service]
-Type=simple
-ExecStart=${EXEC_CMD}
-Restart=on-failure
-RestartSec=5s
-User=root
-WorkingDirectory=${CRED_DIR}
-[Install]
-WantedBy=multi-user.target
+  [ -n "$TUNNEL_TOKEN" ] || die "请在环境变量 TUNNEL_TOKEN 设置 Cloudflare Tunnel Token"
+
+  NODE_PORT=$((RANDOM % 10000 + 30000))
+  UUID=$(cat /proc/sys/kernel/random/uuid)
+  NODE_CONF="$NODE_DIR/$PROT-$NODE_PORT.json"
+  mkdir -p "$NODE_DIR"
+
+  # xray 节点配置
+  cat > "$NODE_CONF" <<EOF
+{
+  "inbounds": [{
+    "port": $NODE_PORT,
+    "protocol": "$PROT",
+    "settings": {"clients":[{"id":"$UUID","alterId":0}]},
+    "streamSettings":{"network":"ws","wsSettings":{"path":"$WS_PATH"}}
+  }]
+}
 EOF
-  systemctl daemon-reload
-  systemctl enable --now cloudflared
-else
-  USER_SERVICE_DIR="${HOME}/.config/systemd/user"
-  mkdir -p "$USER_SERVICE_DIR"
-  SERVICE_FILE="${USER_SERVICE_DIR}/cloudflared.service"
-  cat > "$SERVICE_FILE" <<EOF
-[Unit]
-Description=Cloudflare Tunnel (user)
-After=network-online.target
-[Service]
-Type=simple
-ExecStart=${EXEC_CMD}
-Restart=on-failure
-RestartSec=5s
-WorkingDirectory=${CRED_DIR}
-[Install]
-WantedBy=default.target
+  # Tunnel token
+  printf "%s" "$TUNNEL_TOKEN" > "$TOKEN_FILE"
+  chmod 600 "$TOKEN_FILE"
+
+  # cloudflared 配置
+  cat > "$CONFIG_FILE" <<EOF
+ingress:
+  - hostname: $DOMAIN
+    service: tcp://127.0.0.1:$NODE_PORT
+    originRequest:
+      noTLSVerify: true
+  - service: http_status:404
 EOF
-  systemctl --user daemon-reload
-  systemctl --user enable --now cloudflared
-fi
 
-# ===============================================================
-# 输出节点链接信息
-# ===============================================================
-echo
-echo -e "${green}✅ 节点 + Argo Tunnel 配置完成${re}"
-echo
-echo "节点信息:"
-echo "  协议: $PROT_NAME"
-echo "  地址: $DOMAIN"
-echo "  端口: $NODE_PORT"
-echo "  UUID: $UUID"
-echo "  WS路径: $WS_PATH"
-echo
-echo "Argo Tunnel:"
-echo "  域名: $DOMAIN"
-echo "  配置文件: $CONFIG_FILE"
-echo
+  info "节点生成完成: $NODE_CONF"
+  info "Argo Tunnel 配置: $CONFIG_FILE"
 
-echo -e "${green}节点链接信息:${re}"
-if [ "$PROT_NAME" = "vmess" ]; then
-  VMESS_JSON=$(printf '{
-    "v": "2",
-    "ps": "Argo-VMess",
-    "add": "%s",
-    "port": "%s",
-    "id": "%s",
-    "aid": "0",
-    "net": "ws",
-    "type": "none",
-    "host": "%s",
-    "path": "%s",
-    "tls": "tls"
-  }' "$DOMAIN" "$NODE_PORT" "$UUID" "$DOMAIN" "$WS_PATH")
-  VMESS_LINK=$(echo -n "$VMESS_JSON" | base64 -w0)
-  echo "vmess://$VMESS_LINK"
-else
-  echo "vless://$UUID@$DOMAIN:$NODE_PORT?type=ws&security=tls&path=$WS_PATH#$DOMAIN"
-fi
+  # 输出节点链接
+  echo
+  echo "================ 节点链接 ================="
+  for i in $(seq 1 "$NUM"); do
+    if [ "$PROT" = "vmess" ]; then
+      VMESS_JSON=$(printf '{
+        "v":"2","ps":"Argo-VMess",
+        "add":"%s","port":"%s",
+        "id":"%s","aid":"0",
+        "net":"ws","type":"none",
+        "host":"%s","path":"%s",
+        "tls":"tls"}' "$DOMAIN" "$NODE_PORT" "$UUID" "$DOMAIN" "$WS_PATH")
+      VMESS_LINK=$(echo -n "$VMESS_JSON" | base64 -w0)
+      echo "vmess://$VMESS_LINK"
+    else
+      echo "vless://$UUID@$DOMAIN:$NODE_PORT?type=ws&security=tls&path=$WS_PATH#$DOMAIN"
+    fi
+  done
+  echo "=========================================="
+}
 
-echo
-echo "📋 查看日志: journalctl -u cloudflared -f"
-echo "🔄 重启服务: systemctl restart cloudflared"
+# ---------------------------
+# 启动 cloudflared + xray
+# ---------------------------
+start_node(){
+  install_cloudflared
+  nohup "$CLOUD_BIN" tunnel --config "$CONFIG_FILE" run --token-file "$TOKEN_FILE" >/dev/null 2>&1 &
+  sleep 2
+  info "Cloudflared 已启动"
+}
+
+# ---------------------------
+# 停止 cloudflared
+# ---------------------------
+stop_node(){
+  pkill -f "$CLOUD_BIN" || true
+  info "Cloudflared 已停止"
+}
+
+# ---------------------------
+# 卸载节点
+# ---------------------------
+uninstall_node(){
+  stop_node
+  rm -rf "$NODE_DIR" "$HOME/.cloudflared" "$CLOUD_BIN"
+  info "所有节点及 cloudflared 已卸载"
+}
+
+# ---------------------------
+# 查看节点链接
+# ---------------------------
+show_links(){
+  for NODE_FILE in "$NODE_DIR"/*.json; do
+    [ -f "$NODE_FILE" ] || continue
+    UUID=$(jq -r '.inbounds[0].settings.clients[0].id' "$NODE_FILE")
+    PORT=$(jq -r '.inbounds[0].port' "$NODE_FILE")
+    PROT=$(jq -r '.inbounds[0].protocol' "$NODE_FILE")
+    if [ "$PROT" = "vmess" ]; then
+      VMESS_JSON=$(printf '{
+        "v":"2","ps":"Argo-VMess",
+        "add":"%s","port":"%s",
+        "id":"%s","aid":"0",
+        "net":"ws","type":"none",
+        "host":"%s","path":"%s",
+        "tls":"tls"}' "$DOMAIN" "$PORT" "$UUID" "$DOMAIN" "$WS_PATH")
+      VMESS_LINK=$(echo -n "$VMESS_JSON" | base64 -w0)
+      echo "vmess://$VMESS_LINK"
+    else
+      echo "vless://$UUID@$DOMAIN:$PORT?type=ws&security=tls&path=$WS_PATH#$DOMAIN"
+    fi
+  done
+}
+
+# ---------------------------
+# 主逻辑（快捷命令接口）
+# ---------------------------
+case "${1:-}" in
+  gen)      generate_node ;;
+  start)    start_node ;;
+  stop)     stop_node ;;
+  restart)  stop_node; start_node ;;
+  links)    show_links ;;
+  uninstall)uninstall_node ;;
+  *) echo "用法: ss [gen|start|stop|restart|links|uninstall]" ;;
+esac
