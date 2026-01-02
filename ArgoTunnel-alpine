@@ -2,8 +2,7 @@
 set -euo pipefail
 
 # ======================================================
-# argo-v2ray-alpine.sh
-# 一键生成 VMess/VLESS 节点 + Cloudflare Argo Tunnel 映射 (Alpine)
+# ArgoTunnel + VMess/VLESS 一键安装脚本 (Alpine)
 # ======================================================
 
 die(){ echo "✖ $*" >&2; exit 1; }
@@ -26,9 +25,9 @@ echo "║   🚀 VMess/VLESS + Argo Tunnel 安装器     ║"
 echo "╚══════════════════════════════════════════╝${re}"
 
 # ===============================================================
-# 主菜单
+# 菜单
 # ===============================================================
-echo -e "${bold}${green}1) 生成 VMess/VLESS 节点并映射 Argo Tunnel${re}"
+echo -e "${bold}${green}1) 生成节点 + Argo Tunnel${re}"
 echo -e "${bold}${red}2) 卸载 Argo Tunnel${re}"
 echo -e "${bold}${yellow}3) 退出${re}"
 
@@ -72,11 +71,11 @@ fi
 # ===============================================================
 info "检测系统并安装必要工具..."
 if [ -f /etc/alpine-release ]; then
-  apk add --no-cache curl wget bash || true
+  apk add --no-cache curl wget bash coreutils || true
 elif [ -f /etc/debian_version ]; then
-  apt update -y && apt install -y curl wget bash || true
+  apt update -y && apt install -y curl wget bash coreutils || true
 elif [ -f /etc/redhat-release ]; then
-  yum install -y curl wget bash || true
+  yum install -y curl wget bash coreutils || true
 else
   die "不支持的系统类型"
 fi
@@ -108,9 +107,9 @@ echo "WS路径: $WS_PATH"
 echo "UUID: $UUID"
 
 # ===============================================================
-# Argo Tunnel 域名映射配置
+# Argo Tunnel 映射配置
 # ===============================================================
-read -r -p "请输入你希望绑定的域名 (Public Hostname): " DOMAIN
+read -r -p "请输入绑定的域名 (Public Hostname): " DOMAIN
 read -r -p "协议类型 (http/https/tcp 默认 http): " PROTO
 PROTO=${PROTO:-http}
 echo "选择传输方式: 1) WebSocket 2) gRPC 3) TCP"
@@ -224,18 +223,44 @@ EOF
 fi
 
 # ===============================================================
-# 输出总结
+# 输出节点链接信息
 # ===============================================================
 echo
 echo -e "${green}✅ 节点 + Argo Tunnel 配置完成${re}"
+echo
 echo "节点信息:"
 echo "  协议: $PROT_NAME"
+echo "  地址: $DOMAIN"
 echo "  端口: $NODE_PORT"
-echo "  WS路径: $WS_PATH"
 echo "  UUID: $UUID"
+echo "  WS路径: $WS_PATH"
+echo
 echo "Argo Tunnel:"
 echo "  域名: $DOMAIN"
 echo "  配置文件: $CONFIG_FILE"
+echo
+
+echo -e "${green}节点链接信息:${re}"
+if [ "$PROT_NAME" = "vmess" ]; then
+  VMESS_JSON=$(printf '{
+    "v": "2",
+    "ps": "Argo-VMess",
+    "add": "%s",
+    "port": "%s",
+    "id": "%s",
+    "aid": "0",
+    "net": "ws",
+    "type": "none",
+    "host": "%s",
+    "path": "%s",
+    "tls": "tls"
+  }' "$DOMAIN" "$NODE_PORT" "$UUID" "$DOMAIN" "$WS_PATH")
+  VMESS_LINK=$(echo -n "$VMESS_JSON" | base64 -w0)
+  echo "vmess://$VMESS_LINK"
+else
+  echo "vless://$UUID@$DOMAIN:$NODE_PORT?type=ws&security=tls&path=$WS_PATH#$DOMAIN"
+fi
+
 echo
 echo "📋 查看日志: journalctl -u cloudflared -f"
 echo "🔄 重启服务: systemctl restart cloudflared"
