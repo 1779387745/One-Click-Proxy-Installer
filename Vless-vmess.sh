@@ -1,6 +1,6 @@
 #!/bin/sh
 # Alpine 2.0 Xray VMess/VLESS 管理脚本
-# 支持：管道执行 & 直接下载执行，菜单 + 节点管理
+# 支持管道执行 & 直接下载执行，菜单 + 节点管理 + 自动创建 ss 快捷命令
 
 BASE="$HOME/xray"
 BIN="$BASE/xray"
@@ -8,14 +8,28 @@ CONF="$BASE/config.json"
 PID="$BASE/xray.pid"
 INFO="$BASE/nodes.txt"
 WS_PATH="/ws/api/v1"
+SS_CMD="$HOME/ss"  # 快捷命令文件路径
 
 mkdir -p "$BASE"
 touch "$INFO"
 
+# 自动创建 ss 快捷命令
+if [ ! -f "$SS_CMD" ]; then
+  echo "[+] 创建 ss 快捷命令..."
+  cp "$0" "$SS_CMD"
+  chmod +x "$SS_CMD"
+  # 添加到 shell 配置文件
+  SHELL_RC="$HOME/.bashrc"
+  if ! grep -q "alias ss=" "$SHELL_RC"; then
+    echo "alias ss=\"$SS_CMD\"" >> "$SHELL_RC"
+    echo "[+] 已将 ss 别名写入 $SHELL_RC，输入 'source ~/.bashrc' 生效"
+  fi
+fi
+
 # 获取外网 IP
 IP=$(wget -qO- https://api.ipify.org || echo "YOUR_IP")
 
-# 下载 Xray 最新版本
+# 下载 Xray
 if [ ! -x "$BIN" ]; then
   echo "[+] 下载 Xray core..."
   wget -O "$BASE/xray.zip" \
@@ -24,13 +38,12 @@ if [ ! -x "$BIN" ]; then
   chmod +x "$BIN"
 fi
 
-# 确保配置文件存在
+# 初始化配置
 if [ ! -f "$CONF" ]; then
-  echo "[+] 初始化配置文件..."
   cat > "$CONF" <<EOF
 {
   "inbounds": [],
-  "outbounds": [{ "protocol": "freedom" }]
+  "outbounds": [{"protocol":"freedom"}]
 }
 EOF
 fi
@@ -121,12 +134,11 @@ delete_node() {
   echo "===== 当前节点 ====="
   nl "$INFO"
   echo "输入要删除的节点编号，用空格分隔:"
-  read -r numbers
+  read -r numbers </dev/tty
   TMP=$(mktemp)
   grep -v -E "^($(echo $numbers | sed 's/ /|/g')):" <(nl "$INFO") | sed 's/^[0-9]\+\t//' > "$TMP"
   mv "$TMP" "$INFO"
 
-  # 重建 inbounds
   TMP_CONF=$(mktemp)
   jq '.inbounds=[]' "$CONF" > "$TMP_CONF" && mv "$TMP_CONF" "$CONF"
 
@@ -161,6 +173,7 @@ delete_node() {
 uninstall_xray() {
   stop_xray
   rm -rf "$BASE"
+  [ -f "$SS_CMD" ] && rm -f "$SS_CMD"
   echo "[+] Xray 已卸载"
 }
 
@@ -178,14 +191,7 @@ menu() {
     echo "0) 退出"
     echo "======================="
     printf "请选择操作: "
-    if [ -t 0 ]; then
-      read -r choice
-    else
-      # 如果是管道执行，自动退出
-      echo "[!] 无法交互式输入，请通过命令参数执行"
-      break
-    fi
-
+    read -r choice </dev/tty
     case "$choice" in
       1) start_xray ;;
       2) stop_xray ;;
