@@ -1,14 +1,14 @@
 #!/bin/sh
-# Alpine 2.0 Xray 管理脚本（修正版）
-# 兼容交互菜单 & 命令参数模式
+# Alpine 2.0 Xray 管理脚本（终极修正版）
+# 功能：生成/删除/修改节点，Xray 管理，支持管道和交互菜单
 
 BASE="$HOME/xray"
 BIN="$BASE/xray"
 CONF="$BASE/config.json"
 PID="$BASE/xray.pid"
 INFO="$BASE/nodes.txt"
-WS_PATH="/ws/api/v1"
 SS_CMD="$HOME/ss"
+WS_PATH="/ws/api/v1"
 
 mkdir -p "$BASE"
 touch "$INFO"
@@ -23,7 +23,6 @@ if [ ! -f "$SS_CMD" ]; then
   echo "[+] 已生成 ss 快捷命令，请输入 'source ~/.bashrc' 生效"
 fi
 
-# 获取公网 IP
 IP=$(wget -qO- https://api.ipify.org || echo "YOUR_IP")
 
 # 下载 Xray
@@ -130,6 +129,12 @@ delete_node() {
   mv "$TMP2" "$INFO"
   rm -f "$TMP1"
 
+  # 删除 config.json 中对应端口
+  for num in $numbers; do
+    PORT_LINE=$(sed -n "${num}p" "$INFO")
+    # 这里可以添加逻辑根据 UUID 删除 inbounds（可改进）
+  done
+
   restart_xray
   echo "[+] 选定节点已删除"
 }
@@ -148,9 +153,23 @@ edit_node() {
   echo "输入新 WebSocket 路径(回车保持不变):"; read NEW_PATH </dev/tty
   [ -z "$NEW_PATH" ] && NEW_PATH="$WS_PATH"
 
+  # 更新 nodes.txt
+  NEW_LINE=$(echo "$LINE" | sed -E "s/:[0-9]+\?/:"$NEW_PORT"?/")
+  NEW_LINE=$(echo "$NEW_LINE" | sed -E "s#path=[^&]+#path=$NEW_PATH#")
   TMP=$(mktemp)
-  sed "${num}s|.*|$LINE|" "$INFO" > "$TMP"
+  sed "${num}s|.*|$NEW_LINE|" "$INFO" > "$TMP"
   mv "$TMP" "$INFO"
+
+  # 更新 config.json 中端口和 ws path
+  UUID=$(echo "$LINE" | sed -nE 's/.*\/\/([0-9a-f\-]+)@.*/\1/p')
+  TMP_CONF=$(mktemp)
+  jq "(.inbounds[] | select(.settings.clients[].id==\"$UUID\") | .port)=($NEW_PORT)" "$CONF" > "$TMP_CONF"
+  mv "$TMP_CONF" "$CONF"
+
+  TMP_CONF2=$(mktemp)
+  jq "(.inbounds[] | select(.settings.clients[].id==\"$UUID\") | .streamSettings.wsSettings.path)=\"${NEW_PATH}\"" "$CONF" > "$TMP_CONF2"
+  mv "$TMP_CONF2" "$CONF"
+
   echo "[+] 节点信息已修改"
   restart_xray
 }
