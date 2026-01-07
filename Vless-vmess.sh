@@ -1,6 +1,6 @@
 #!/bin/sh
 # Alpine 2.0 compatible Xray installer + ss manager
-# VMess + VLESS | WS/伪装路径 | No TLS | No apk | No bash
+# VMess + VLESS | WS/伪装路径 | No TLS | No root
 
 set -e
 
@@ -11,6 +11,7 @@ PID="$BASE/xray.pid"
 INFO="$BASE/nodes.txt"
 CTL="$BASE/ss"
 
+# WebSocket 伪装路径
 WS_PATH="/ws/api/v1"
 
 mkdir -p "$BASE"
@@ -25,10 +26,10 @@ uuid() { cat /proc/sys/kernel/random/uuid; }
 VLESS_UUID=$(uuid)
 VMESS_UUID=$(uuid)
 
-# 获取 IP
+# 获取外网 IP
 IP=$(wget -qO- https://api.ipify.org || echo "YOUR_IP")
 
-# 下载 Xray（官方 ZIP）
+# 下载 Xray（官方 ZIP，修正了下载链接）
 if [ ! -x "$BIN" ]; then
   echo "[+] Downloading Xray core..."
   wget -O "$BASE/xray.zip" \
@@ -37,7 +38,7 @@ if [ ! -x "$BIN" ]; then
   chmod +x "$BIN"
 fi
 
-# 生成配置
+# 生成配置文件
 cat > "$CONF" <<EOF
 {
   "inbounds": [
@@ -121,9 +122,13 @@ EOF
 
 chmod +x "$CTL"
 
+# 启动 Xray
 "$CTL" start
 
+# 输出节点
 echo ""
 echo "===== 节点（复制这两行） ====="
 cat "$INFO"
 echo "=============================="
+echo ""
+echo "管理命令：ss start | stop | restart | status | nodes | uninstall"
