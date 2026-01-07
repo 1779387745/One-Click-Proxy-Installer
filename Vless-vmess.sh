@@ -1,7 +1,5 @@
 #!/bin/sh
-# Alpine 2.0 Xray VMess/VLESS 管理脚本
-# 完全 ash 兼容，支持管道/直接下载执行
-# 节点生成/删除/修改/查看 + 自动 ss 快捷命令
+# Alpine 2.0 Xray 管理脚本 (管道 + 手动执行均可)
 
 BASE="$HOME/xray"
 BIN="$BASE/xray"
@@ -19,20 +17,19 @@ if [ ! -f "$SS_CMD" ]; then
   cp "$0" "$SS_CMD"
   chmod +x "$SS_CMD"
   SHELL_RC="$HOME/.bashrc"
-  if ! grep -q "alias ss=" "$SHELL_RC" 2>/dev/null; then
+  grep "alias ss=" "$SHELL_RC" >/dev/null 2>&1 || \
     echo "alias ss=\"$SS_CMD\"" >> "$SHELL_RC"
-    echo "[+] 已将 ss 别名写入 $SHELL_RC，请输入 'source ~/.bashrc' 生效"
-  fi
+  echo "[+] 已生成 ss 快捷命令，请输入 'source ~/.bashrc' 生效"
 fi
 
-# 获取外网 IP
+# 获取公网 IP
 IP=$(wget -qO- https://api.ipify.org || echo "YOUR_IP")
 
 # 下载 Xray
 if [ ! -x "$BIN" ]; then
   echo "[+] 下载 Xray core..."
-  wget -O "$BASE/xray.zip" https://github.com/XTLS/Xray-core/releases/download/v25.12.8/Xray-linux-64.zip
-  unzip -o "$BASE/xray.zip" -d "$BASE"
+  wget -qO "$BASE/xray.zip" https://github.com/XTLS/Xray-core/releases/download/v25.12.8/Xray-linux-64.zip
+  unzip -o "$BASE/xray.zip" -d "$BASE" >/dev/null 2>&1
   chmod +x "$BIN"
 fi
 
@@ -46,7 +43,6 @@ if [ ! -f "$CONF" ]; then
 EOF
 fi
 
-# 生成 UUID
 uuid() { cat /proc/sys/kernel/random/uuid; }
 
 # ---- Xray 控制 ----
@@ -97,13 +93,13 @@ generate_node() {
   VLESS_UUID=$(uuid)
   VMESS_UUID=$(uuid)
 
-  TMP=$(mktemp)
+  TMP_CONF="$CONF.tmp"
   cat "$CONF" | \
   jq ".inbounds += [
     {\"port\": $VLESS_PORT,\"protocol\": \"vless\",\"settings\": {\"clients\": [{\"id\": \"$VLESS_UUID\"}],\"decryption\": \"none\"},\"streamSettings\": {\"network\": \"ws\",\"wsSettings\": {\"path\": \"$WS_PATH\"}}},
     {\"port\": $VMESS_PORT,\"protocol\": \"vmess\",\"settings\": {\"clients\": [{\"id\": \"$VMESS_UUID\",\"alterId\":0}]},\"streamSettings\": {\"network\": \"ws\",\"wsSettings\": {\"path\": \"$WS_PATH\"}}}
-  ]" > "$TMP"
-  mv "$TMP" "$CONF"
+  ]" > "$TMP_CONF"
+  mv "$TMP_CONF" "$CONF"
 
   VLESS_LINK="vless://$VLESS_UUID@$IP:$VLESS_PORT?type=ws&path=$WS_PATH#VLESS-WS"
   VMESS_JSON=$(printf '{"v":"2","ps":"VMess-WS","add":"%s","port":"%s","id":"%s","aid":"0","net":"ws","path":"%s","tls":""}' "$IP" "$VMESS_PORT" "$VMESS_UUID" "$WS_PATH")
@@ -111,6 +107,7 @@ generate_node() {
 
   echo "$VLESS_LINK" >> "$INFO"
   echo "$VMESS_LINK" >> "$INFO"
+
   echo "[+] 新节点已生成:"
   echo "$VLESS_LINK"
   echo "$VMESS_LINK"
@@ -133,7 +130,6 @@ delete_node() {
   jq '.inbounds=[]' "$CONF" > "$TMP_CONF"
   mv "$TMP_CONF" "$CONF"
 
-  # 重新写入剩余节点
   while read -r line; do
     if echo "$line" | grep -q "^vless://"; then
       UUID=$(echo "$line" | cut -d: -f3 | cut -d@ -f1)
