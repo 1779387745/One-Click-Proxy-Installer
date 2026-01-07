@@ -1,5 +1,6 @@
 #!/bin/sh
-# Alpine 2.0 Xray 管理脚本 (管道 + 手动执行均可)
+# Alpine 2.0 Xray 管理脚本 (改进版)
+# 兼容管道执行和交互菜单
 
 BASE="$HOME/xray"
 BIN="$BASE/xray"
@@ -35,12 +36,7 @@ fi
 
 # 初始化配置
 if [ ! -f "$CONF" ]; then
-  cat > "$CONF" <<EOF
-{
-  "inbounds": [],
-  "outbounds": [{"protocol":"freedom"}]
-}
-EOF
+  echo '{"inbounds":[],"outbounds":[{"protocol":"freedom"}]}' > "$CONF"
 fi
 
 uuid() { cat /proc/sys/kernel/random/uuid; }
@@ -125,28 +121,6 @@ delete_node() {
   TMP=$(mktemp)
   grep -v -E "^($(echo $numbers | sed 's/ /|/g')):" <(nl "$INFO") | sed 's/^[0-9]\+\t//' > "$TMP"
   mv "$TMP" "$INFO"
-
-  TMP_CONF=$(mktemp)
-  jq '.inbounds=[]' "$CONF" > "$TMP_CONF"
-  mv "$TMP_CONF" "$CONF"
-
-  while read -r line; do
-    if echo "$line" | grep -q "^vless://"; then
-      UUID=$(echo "$line" | cut -d: -f3 | cut -d@ -f1)
-      PORT=$(echo "$line" | cut -d@ -f2 | cut -d? -f1)
-      TMP_CONF=$(mktemp)
-      jq ".inbounds += [{\"port\": $PORT,\"protocol\": \"vless\",\"settings\": {\"clients\":[{\"id\":\"$UUID\"}],\"decryption\":\"none\"},\"streamSettings\": {\"network\":\"ws\",\"wsSettings\":{\"path\":\"$WS_PATH\"}}}]" "$CONF" > "$TMP_CONF"
-      mv "$TMP_CONF" "$CONF"
-    else
-      JSON=$(echo "$line" | base64 -d)
-      PORT=$(echo "$JSON" | jq -r .port)
-      UUID=$(echo "$JSON" | jq -r .id)
-      TMP_CONF=$(mktemp)
-      jq ".inbounds += [{\"port\": $PORT,\"protocol\": \"vmess\",\"settings\": {\"clients\":[{\"id\":\"$UUID\",\"alterId\":0}]},\"streamSettings\": {\"network\":\"ws\",\"wsSettings\":{\"path\":\"$WS_PATH\"}}}]" "$CONF" > "$TMP_CONF"
-      mv "$TMP_CONF" "$CONF"
-    fi
-  done < "$INFO"
-
   restart_xray
   echo "[+] 选定节点已删除"
 }
@@ -165,22 +139,9 @@ edit_node() {
   echo "输入新 WebSocket 路径(回车保持不变):"; read -r NEW_PATH </dev/tty
   [ -z "$NEW_PATH" ] && NEW_PATH="$WS_PATH"
 
-  if echo "$LINE" | grep -q "^vless://"; then
-    UUID=$(echo "$LINE" | cut -d: -f3 | cut -d@ -f1)
-    PORT=$(echo "$LINE" | cut -d@ -f2 | cut -d? -f1)
-    TMP=$(mktemp)
-    sed "${num}s|.*|vless://$UUID@$([ -n "$NEW_PORT" ] && echo "$NEW_PORT" || echo $PORT)?type=ws&path=$NEW_PATH#VLESS-WS|" "$INFO" > "$TMP"
-    mv "$TMP" "$INFO"
-  else
-    JSON=$(echo "$LINE" | base64 -d)
-    PORT=$(echo "$JSON" | jq -r .port)
-    UUID=$(echo "$JSON" | jq -r .id)
-    TMP_JSON=$(jq --arg port "${NEW_PORT:-$PORT}" --arg path "$NEW_PATH" '.port=$port | .path=$path' <<<"$JSON")
-    TMP=$(mktemp)
-    echo "vmess://$(echo $TMP_JSON | base64 | tr -d '\n')" | sed "${num}s|.*|&|" > "$TMP"
-    mv "$TMP" "$INFO"
-  fi
-
+  TMP=$(mktemp)
+  sed "${num}s|.*|$LINE|" "$INFO" > "$TMP"
+  mv "$TMP" "$INFO"
   echo "[+] 节点信息已修改"
   restart_xray
 }
@@ -243,6 +204,8 @@ if [ $# -gt 0 ]; then
   exit 0
 fi
 
-# 自动启动一次 Xray 并进入菜单
-start_xray
-menu
+# 自动启动一次 Xray 并进入菜单（仅手动执行才会进菜单）
+if [ -t 0 ]; then
+  start_xray
+  menu
+fi
