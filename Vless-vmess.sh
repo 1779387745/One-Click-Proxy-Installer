@@ -1,6 +1,6 @@
 #!/bin/sh
-# Alpine / BusyBox / No root
-# VMess + VLESS WS | 永不 404 Xray 下载方案
+# Alpine 2.0 compatible Xray installer + ss manager
+# VMess + VLESS | WS | No TLS | No apk | No bash
 
 set -e
 
@@ -13,9 +13,9 @@ CTL="$BASE/ss"
 
 mkdir -p "$BASE"
 
-### 端口（BusyBox 安全）
-BASE_PORT=$(( ( $$ % 40000 ) + 10000 ))
-VLESS_PORT="$BASE_PORT"
+### 端口（保证不冲突）
+BASE_PORT=$(( ( $(date +%s) % 40000 ) + 10000 ))
+VLESS_PORT=$BASE_PORT
 VMESS_PORT=$((BASE_PORT + 1))
 
 ### UUID
@@ -23,50 +23,26 @@ uuid() {
   cat /proc/sys/kernel/random/uuid
 }
 
-VLESS_UUID="$(uuid)"
-VMESS_UUID="$(uuid)"
+VLESS_UUID=$(uuid)
+VMESS_UUID=$(uuid)
 
 ### IP
-IP="$(wget -qO- https://api.ipify.org --no-check-certificate || echo 127.0.0.1)"
+IP=$(wget -qO- https://api.ipify.org || echo "YOUR_IP")
 
-### 架构识别（新旧命名兼容）
-ARCH="$(uname -m)"
-case "$ARCH" in
-  x86_64)
-    XRAY_NEW="Xray-linux-amd64.tar.gz"
-    XRAY_OLD="Xray-linux-64.tar.gz"
-    ;;
-  aarch64|arm64)
-    XRAY_NEW="Xray-linux-arm64-v8a.tar.gz"
-    XRAY_OLD="Xray-linux-arm64.tar.gz"
-    ;;
-  *)
-    echo "Unsupported arch: $ARCH"
-    exit 1
-    ;;
-esac
-
-### 下载 Xray（新 → 旧 自动 fallback）
+### 下载 Xray
 if [ ! -x "$BIN" ]; then
   echo "[+] Downloading Xray core..."
-
-  if ! wget --no-check-certificate -O "$BASE/xray.tar.gz" \
-    "https://github.com/XTLS/Xray-core/releases/latest/download/$XRAY_NEW"; then
-    echo "[!] New filename failed, fallback to legacy..."
-    wget --no-check-certificate -O "$BASE/xray.tar.gz" \
-      "https://github.com/XTLS/Xray-core/releases/latest/download/$XRAY_OLD"
-  fi
-
+  wget -O "$BASE/xray.tar.gz" \
+    https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.tar.gz
   tar -xzf "$BASE/xray.tar.gz" -C "$BASE"
   chmod +x "$BIN"
 fi
 
-### 配置
+### 配置文件
 cat > "$CONF" <<EOF
 {
   "inbounds": [
     {
-      "listen": "0.0.0.0",
       "port": $VLESS_PORT,
       "protocol": "vless",
       "settings": {
@@ -79,7 +55,6 @@ cat > "$CONF" <<EOF
       }
     },
     {
-      "listen": "0.0.0.0",
       "port": $VMESS_PORT,
       "protocol": "vmess",
       "settings": {
@@ -95,29 +70,18 @@ cat > "$CONF" <<EOF
 }
 EOF
 
-### base64（BusyBox 兜底）
-b64() {
-  if command -v base64 >/dev/null 2>&1; then
-    base64 | tr -d '\n\r'
-  else
-    openssl base64 | tr -d '\n\r'
-  fi
-}
-
-### 节点
+### 节点信息（保存，供 ss nodes 使用）
 VLESS_LINK="vless://$VLESS_UUID@$IP:$VLESS_PORT?type=ws&path=/#VLESS-WS"
-
 VMESS_JSON=$(printf '{"v":"2","ps":"VMess-WS","add":"%s","port":"%s","id":"%s","aid":"0","net":"ws","type":"none","host":"","path":"/","tls":""}' \
 "$IP" "$VMESS_PORT" "$VMESS_UUID")
-
-VMESS_LINK="vmess://$(printf '%s' "$VMESS_JSON" | b64)"
+VMESS_LINK="vmess://$(echo "$VMESS_JSON" | base64 | tr -d '\n')"
 
 cat > "$INFO" <<EOF
 $VLESS_LINK
 $VMESS_LINK
 EOF
 
-### 管理命令
+### ss 管理脚本
 cat > "$CTL" <<'EOF'
 #!/bin/sh
 BASE="$HOME/xray"
@@ -142,7 +106,7 @@ case "$1" in
     $0 start
     ;;
   status)
-    if [ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null; then
+    if [ -f "$PID" ] && ps | grep "$(cat "$PID")" | grep -v grep >/dev/null; then
       echo "Xray running (PID $(cat "$PID"))"
     else
       echo "Xray stopped"
@@ -170,7 +134,7 @@ chmod +x "$CTL"
 ### 启动
 "$CTL" start
 
-### 输出
+### 首次输出节点
 echo ""
 echo "========= 节点（首次输出） ========="
 cat "$INFO"
