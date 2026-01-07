@@ -1,6 +1,6 @@
 #!/bin/sh
 # Alpine 2.0 compatible Xray installer + ss manager
-# VMess + VLESS | WS | Fake Path | No TLS | No root
+# VMess + VLESS | WS/伪装路径 | No TLS | No apk | No bash
 
 set -e
 
@@ -11,33 +11,33 @@ PID="$BASE/xray.pid"
 INFO="$BASE/nodes.txt"
 CTL="$BASE/ss"
 
-### 🔐 WebSocket 伪装路径
 WS_PATH="/ws/api/v1"
 
 mkdir -p "$BASE"
 
-### 端口（不冲突）
+# 随机端口（避免冲突）
 BASE_PORT=$(( ( $(date +%s) % 40000 ) + 10000 ))
 VLESS_PORT=$BASE_PORT
 VMESS_PORT=$((BASE_PORT + 1))
 
-### UUID
+# 生成 UUID
 uuid() { cat /proc/sys/kernel/random/uuid; }
 VLESS_UUID=$(uuid)
 VMESS_UUID=$(uuid)
 
-### IP
+# 获取 IP
 IP=$(wget -qO- https://api.ipify.org || echo "YOUR_IP")
 
-### 下载 Xray
+# 下载 Xray（官方 ZIP）
 if [ ! -x "$BIN" ]; then
-  wget -O "$BASE/xray.tar.gz" \
-    https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.tar.gz
-  tar -xzf "$BASE/xray.tar.gz" -C "$BASE"
+  echo "[+] Downloading Xray core..."
+  wget -O "$BASE/xray.zip" \
+    https://github.com/XTLS/Xray-core/releases/download/v25.12.8/Xray-linux-64.zip
+  unzip -o "$BASE/xray.zip" -d "$BASE"
   chmod +x "$BIN"
 fi
 
-### 配置
+# 生成配置
 cat > "$CONF" <<EOF
 {
   "inbounds": [
@@ -69,7 +69,7 @@ cat > "$CONF" <<EOF
 }
 EOF
 
-### 节点
+# 生成节点链接
 VLESS_LINK="vless://$VLESS_UUID@$IP:$VLESS_PORT?type=ws&path=$WS_PATH#VLESS-WS"
 VMESS_JSON=$(printf '{"v":"2","ps":"VMess-WS","add":"%s","port":"%s","id":"%s","aid":"0","net":"ws","path":"%s","tls":""}' \
 "$IP" "$VMESS_PORT" "$VMESS_UUID" "$WS_PATH")
@@ -78,8 +78,8 @@ VMESS_LINK="vmess://$(echo "$VMESS_JSON" | base64 | tr -d '\n')"
 echo "$VLESS_LINK" > "$INFO"
 echo "$VMESS_LINK" >> "$INFO"
 
-### ss 管理
-cat > "$CTL" <<'EOF'
+# 管理脚本 ss
+cat > "$CTL" << 'EOF'
 #!/bin/sh
 BASE="$HOME/xray"
 BIN="$BASE/xray"
@@ -96,19 +96,22 @@ case "$1" in
     [ -f "$PID" ] && kill "$(cat "$PID")" 2>/dev/null && rm -f "$PID"
     ;;
   restart)
-    $0 stop; sleep 1; $0 start ;;
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
   status)
-    [ -f "$PID" ] && ps | grep "$(cat "$PID")" | grep -v grep && echo running || echo stopped
+    [ -f "$PID" ] && ps | grep "$(cat "$PID")" | grep -v grep && echo "running" || echo "stopped"
     ;;
   nodes)
-    echo "==== 节点（批量导入） ===="
+    echo "====== 节点信息 ======"
     cat "$INFO"
-    echo "=========================="
+    echo "====================="
     ;;
   uninstall)
     $0 stop
     rm -rf "$BASE"
-    echo "Xray removed"
+    echo "Xray 已完全卸载"
     ;;
   *)
     echo "Usage: ss {start|stop|restart|status|nodes|uninstall}"
