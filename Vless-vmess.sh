@@ -1,6 +1,6 @@
 #!/bin/sh
-# Alpine 2.0 Xray 管理脚本 (改进版)
-# 兼容管道执行和交互菜单
+# Alpine 2.0 Xray 管理脚本（修正版）
+# 兼容交互菜单 & 命令参数模式
 
 BASE="$HOME/xray"
 BIN="$BASE/xray"
@@ -13,7 +13,7 @@ SS_CMD="$HOME/ss"
 mkdir -p "$BASE"
 touch "$INFO"
 
-# 自动创建 ss 快捷命令
+# 自动生成 ss 快捷命令
 if [ ! -f "$SS_CMD" ]; then
   cp "$0" "$SS_CMD"
   chmod +x "$SS_CMD"
@@ -116,11 +116,20 @@ delete_node() {
   echo "===== 当前节点 ====="
   nl "$INFO"
   echo "输入要删除的节点编号，用空格分隔:"
-  read -r numbers </dev/tty
+  read numbers </dev/tty
 
-  TMP=$(mktemp)
-  grep -v -E "^($(echo $numbers | sed 's/ /|/g')):" <(nl "$INFO") | sed 's/^[0-9]\+\t//' > "$TMP"
-  mv "$TMP" "$INFO"
+  TMP1=$(mktemp)
+  cp "$INFO" "$TMP1"
+
+  for num in $numbers; do
+    sed -i "${num}d" "$TMP1"
+  done
+
+  TMP2=$(mktemp)
+  sed 's/^[0-9]\+\t//' "$TMP1" > "$TMP2"
+  mv "$TMP2" "$INFO"
+  rm -f "$TMP1"
+
   restart_xray
   echo "[+] 选定节点已删除"
 }
@@ -130,13 +139,13 @@ edit_node() {
   echo "===== 当前节点 ====="
   nl "$INFO"
   echo "输入要修改的节点编号:"
-  read -r num </dev/tty
+  read num </dev/tty
   LINE=$(sed -n "${num}p" "$INFO")
   [ -z "$LINE" ] && echo "无效编号" && return
 
   echo "当前节点: $LINE"
-  echo "输入新端口(回车保持不变):"; read -r NEW_PORT </dev/tty
-  echo "输入新 WebSocket 路径(回车保持不变):"; read -r NEW_PATH </dev/tty
+  echo "输入新端口(回车保持不变):"; read NEW_PORT </dev/tty
+  echo "输入新 WebSocket 路径(回车保持不变):"; read NEW_PATH </dev/tty
   [ -z "$NEW_PATH" ] && NEW_PATH="$WS_PATH"
 
   TMP=$(mktemp)
@@ -169,7 +178,7 @@ menu() {
     echo "0) 退出"
     echo "======================="
     printf "请选择操作: "
-    read -r choice </dev/tty
+    read choice </dev/tty
     case "$choice" in
       1) start_xray ;;
       2) stop_xray ;;
@@ -204,7 +213,7 @@ if [ $# -gt 0 ]; then
   exit 0
 fi
 
-# 自动启动一次 Xray 并进入菜单（仅手动执行才会进菜单）
+# 自动启动一次 Xray 并进入菜单（仅手动执行）
 if [ -t 0 ]; then
   start_xray
   menu
