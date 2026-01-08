@@ -1,139 +1,141 @@
 #!/bin/sh
-set -eu
+# =========================================================
+# Xray + Argo Tunnel 终极稳定版（Quick / Named 可选）
+# VLESS + VMess | WS + TLS | Alpine / 非 root
+# =========================================================
 
-die(){ echo "✖ $*" >&2; exit 1; }
-info(){ echo "→ $*"; }
+set -e
 
-HOME=${HOME:-/root}
-BIN="$HOME/.local/bin"
-CF="$HOME/.cloudflared"
-DB="$HOME/.v2ray"
-NODE_DB="$DB/nodes.db"
+BASE="$HOME/xray"
+BIN="$BASE/xray"
+CONF="$BASE/config.json"
+PID="$BASE/xray.pid"
+INFO="$BASE/nodes.txt"
+CF="$BASE/cloudflared"
+ARGO="$BASE/argo"
+WS_PATH="/ws/api/v1"
 
-mkdir -p "$BIN" "$CF" "$DB"
+mkdir -p "$BASE"
+touch "$INFO"
 
-CLOUD="$BIN/cloudflared"
-CFG="$CF/config.yml"
-TOKEN="$CF/token"
+# ---------- 依赖 ----------
+for c in jq wget unzip; do
+  command -v "$c" >/dev/null 2>&1 || {
+    echo "[-] 缺少依赖: $c"
+    exit 1
+  }
+done
 
-# ================= cloudflared =================
-install_cloudflared(){
-  [ -x "$CLOUD" ] && return
-  info "下载 cloudflared（无 root）"
-  ARCH=$(uname -m)
-  case "$ARCH" in
-    x86_64) FILE="cloudflared-linux-amd64" ;;
-    aarch64) FILE="cloudflared-linux-arm64" ;;
-    *) die "不支持架构 $ARCH" ;;
-  esac
-  wget -q -O "$CLOUD" \
-    "https://github.com/cloudflare/cloudflared/releases/latest/download/$FILE" \
-    || die "cloudflared 下载失败"
-  chmod +x "$CLOUD"
-}
-
-# ================= 生成节点 =================
-gen_node(){
-  read -rp "域名 (如 xxx.example.com): " DOMAIN
-  read -rp "Tunnel Token: " TUN
-  read -rp "协议 vmess / vless [vmess]: " PROT
-  PROT=${PROT:-vmess}
-  read -rp "WS 路径 [/]: " WSPATH
-  WSPATH=${WSPATH:-/}
-
-  install_cloudflared
-
-  PORT=$((RANDOM%10000+30000))
-  UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen)
-
-  printf "%s\n" "$DOMAIN|$PORT|$UUID|$PROT|$WSPATH" >> "$NODE_DB"
-  printf "%s" "$TUN" > "$TOKEN"
-  chmod 600 "$TOKEN"
-
-  printf "ingress:\n  - hostname: %s\n    service: tcp://127.0.0.1:%s\n  - service: http_status:404\n" \
-    "$DOMAIN" "$PORT" > "$CFG"
-
-  nohup "$CLOUD" tunnel run \
-    --config "$CFG" \
-    --token-file "$TOKEN" \
-    >/dev/null 2>&1 &
-
-  info "节点已启动"
-  show_nodes
-}
-
-# ================= 查看节点 =================
-show_nodes(){
-  [ -f "$NODE_DB" ] || { echo "暂无节点"; return; }
-  echo "========= 节点 ========="
-  while IFS='|' read -r D P U T PA; do
-    if [ "$T" = "vmess" ]; then
-      JSON=$(printf '{"v":"2","ps":"Argo","add":"%s","port":"%s","id":"%s","aid":"0","net":"ws","type":"none","host":"%s","path":"%s","tls":"tls"}' \
-        "$D" "$P" "$U" "$D" "$PA")
-      echo "vmess://$(printf "%s" "$JSON" | base64 | tr -d '\n')"
-    else
-      echo "vless://$U@$D:$P?type=ws&security=tls&path=$PA#$D"
-    fi
-  done < "$NODE_DB"
-  echo "========================"
-}
-
-# ================= 控制 =================
-start_cf(){
-  [ -f "$CFG" ] || die "未生成节点"
-  nohup "$CLOUD" tunnel run \
-    --config "$CFG" \
-    --token-file "$TOKEN" \
-    >/dev/null 2>&1 &
-  info "cloudflared 已启动"
-}
-
-stop_cf(){
-  pkill -f cloudflared 2>/dev/null || true
-  info "cloudflared 已停止"
-}
-
-restart_cf(){
-  stop_cf
-  start_cf
-}
-
-uninstall_all(){
-  stop_cf
-  rm -rf "$DB" "$CF" "$CLOUD"
-  info "已完全卸载"
-}
-
-# ================= 面板 =================
-panel(){
-  while :; do
-    echo
-    echo "=========== ss 面板 ==========="
-    echo "1) 生成节点"
-    echo "2) 启动"
-    echo "3) 查看节点"
-    echo "4) 停止"
-    echo "5) 重启"
-    echo "6) 卸载"
-    echo "0) 退出"
-    read -rp "请选择 [0-6]: " C
-    case "$C" in
-      1) gen_node ;;
-      2) start_cf ;;
-      3) show_nodes ;;
-      4) stop_cf ;;
-      5) restart_cf ;;
-      6) uninstall_all ;;
-      0) exit 0 ;;
-    esac
-  done
-}
-
-# ================= ss 快捷命令 =================
-if [ ! -x "$BIN/ss" ]; then
-  printf '#!/bin/sh\n"%s/ArgoTunnel-alpine"\n' "$HOME" > "$BIN/ss"
-  chmod +x "$BIN/ss"
-  info "快捷命令 ss 已创建"
+# ---------- Xray ----------
+if [ ! -x "$BIN" ]; then
+  wget -qO "$BASE/xray.zip" \
+    https://github.com/XTLS/Xray-core/releases/download/v25.12.8/Xray-linux-64.zip
+  unzip -qo "$BASE/xray.zip" -d "$BASE"
+  chmod +x "$BIN"
 fi
 
-panel
+# ---------- cloudflared ----------
+if [ ! -x "$CF" ]; then
+  wget -qO "$CF" \
+    https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+  chmod +x "$CF"
+fi
+
+# ---------- init config ----------
+cat >"$CONF" <<EOF
+{
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 10000,
+      "protocol": "vless",
+      "settings": {
+        "clients": [],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": { "path": "$WS_PATH" }
+      }
+    }
+  ],
+  "outbounds": [{ "protocol": "freedom" }]
+}
+EOF
+
+uuid() { cat /proc/sys/kernel/random/uuid; }
+
+# ---------- 启动 Xray ----------
+start_xray() {
+  "$BIN" run -config "$CONF" >/dev/null 2>&1 &
+  echo $! >"$PID"
+}
+
+stop_xray() {
+  [ -f "$PID" ] && kill "$(cat "$PID")" 2>/dev/null || true
+}
+
+# ---------- 生成节点 ----------
+generate_node() {
+  VLESS_ID=$(uuid)
+  VMESS_ID=$(uuid)
+
+  jq ".inbounds[0].settings.clients += [
+    {\"id\":\"$VLESS_ID\"},
+    {\"id\":\"$VMESS_ID\",\"alterId\":0}
+  ]" "$CONF" >"$CONF.tmp" && mv "$CONF.tmp" "$CONF"
+
+  DOMAIN=$(cat "$ARGO/domain")
+
+  VLESS="vless://$VLESS_ID@$DOMAIN:443?encryption=none&security=tls&type=ws&path=$WS_PATH#VLESS-Argo"
+  VMESS_JSON=$(printf '{"v":"2","ps":"VMess-Argo","add":"%s","port":"443","id":"%s","aid":"0","net":"ws","path":"%s","tls":"tls"}' \
+    "$DOMAIN" "$VMESS_ID" "$WS_PATH")
+  VMESS="vmess://$(echo "$VMESS_JSON" | base64 | tr -d '\n')"
+
+  echo "$VLESS" >>"$INFO"
+  echo "$VMESS" >>"$INFO"
+
+  echo "[+] 节点已生成，可直接连接"
+  echo "$VLESS"
+  echo "$VMESS"
+}
+
+# ---------- Argo ----------
+start_argo() {
+  echo "1) 临时隧道 (Quick Tunnel)"
+  echo "2) 固定隧道 (Named Tunnel)"
+  read m </dev/tty
+
+  if [ "$m" = "1" ]; then
+    "$CF" tunnel --url http://127.0.0.1:10000 >"$ARGO.log" 2>&1 &
+    sleep 5
+    DOMAIN=$(grep -oE 'https://[a-z0-9\-]+\.trycloudflare.com' "$ARGO.log" | head -n1 | sed 's#https://##')
+    echo "$DOMAIN" >"$ARGO/domain"
+  else
+    "$CF" login
+    echo "输入绑定域名:"
+    read DOMAIN </dev/tty
+    "$CF" tunnel create xray
+    cat >"$ARGO/config.yml" <<EOF
+tunnel: xray
+credentials-file: $HOME/.cloudflared/*.json
+ingress:
+  - hostname: $DOMAIN
+    service: http://127.0.0.1:10000
+  - service: http_status:404
+EOF
+    "$CF" tunnel run xray >/dev/null 2>&1 &
+    echo "$DOMAIN" >"$ARGO/domain"
+  fi
+}
+
+# ---------- 主流程 ----------
+start_xray
+start_argo
+generate_node
+
+echo
+echo "========================="
+echo "节点已生成并可用"
+echo "WS Path: $WS_PATH"
+echo "========================="
