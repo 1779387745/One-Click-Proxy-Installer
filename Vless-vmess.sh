@@ -1,5 +1,5 @@
 #!/bin/bash
-# 一键安装 Xray + VMess/VLESS WS (无 TLS) + 随机端口 (Alpine 2.0 适用)
+# Alpine 2.0 完整 Xray 安装 + VMess/VLESS WS 无 TLS + 随机端口 + QR码直接扫码
 
 # 检查 root
 if [[ $EUID -ne 0 ]]; then
@@ -9,7 +9,7 @@ fi
 
 echo "=== 安装必要依赖 ==="
 apk update
-apk add bash curl tar coreutils lsof
+apk add bash curl tar coreutils lsof qrencode
 
 # 安装 Xray
 echo "=== 安装 Xray ==="
@@ -103,9 +103,11 @@ echo "=== 设置 Xray 自启并启动 ==="
 rc-update add xray
 rc-service xray restart
 
-# 生成客户端节点链接
-# VMess 节点
-VMESS_CONFIG=$(cat <<EOF
+# 生成客户端节点链接（标准可扫码格式）
+VLESS_LINK="vless://$VLESS_UUID@$SERVER_IP:$VLESS_PORT?type=ws&path=/#VLESS-WS"
+
+# VMess 标准格式 JSON
+VMESS_JSON=$(cat <<EOF
 {
   "v": "2",
   "ps": "VMess-WS",
@@ -122,12 +124,21 @@ VMESS_CONFIG=$(cat <<EOF
 EOF
 )
 
-VMESS_LINK=$(echo $VMESS_CONFIG | base64 -w0 | sed 's/$/==/')
-VLESS_LINK="vless://$VLESS_UUID@$SERVER_IP:$VLESS_PORT?type=ws&path=/#VLESS-WS"
+# 转成 vmess:// 标准二维码链接
+VMESS_LINK="vmess://$(echo $VMESS_JSON | base64 -w0)"
 
 echo -e "\n=== 安装完成 ==="
 echo "服务器 IP/域名: $SERVER_IP"
 echo "VLESS 节点: $VLESS_LINK"
-echo "VMess 节点: vmess://$VMESS_LINK"
+echo "VMess 节点: $VMESS_LINK"
 echo "WebSocket 路径: /"
 echo "VLESS 端口: $VLESS_PORT, VMess 端口: $VMESS_PORT"
+
+# 显示二维码
+echo -e "\n=== VLESS QR码 ==="
+echo "$VLESS_LINK" | qrencode -t UTF8
+
+echo -e "\n=== VMess QR码 ==="
+echo "$VMESS_LINK" | qrencode -t UTF8
+
+echo -e "\n=== 完成 === 可以直接用客户端扫码导入 ==="
