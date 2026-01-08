@@ -1,226 +1,133 @@
-#!/bin/sh
-# =========================================================
-# Xray Alpine / 非 root 终极稳定版管理脚本
-# VMess + VLESS (WS)
-# =========================================================
+#!/bin/bash
+# 一键安装 Xray + VMess/VLESS WS (无 TLS) + 随机端口 (Alpine 2.0 适用)
 
-set -e
-
-# ---------- 基础路径 ----------
-BASE="$HOME/xray"
-BIN="$BASE/xray"
-CONF="$BASE/config.json"
-PID="$BASE/xray.pid"
-INFO="$BASE/nodes.txt"
-WS_PATH="/ws/api/v1"
-
-mkdir -p "$BASE"
-touch "$INFO"
-
-# ---------- 依赖检测 ----------
-for cmd in jq wget unzip ss; do
-  command -v "$cmd" >/dev/null 2>&1 || {
-    echo "[-] 缺少依赖: $cmd"
-    echo "    Alpine 请执行: apk add jq wget unzip iproute2"
+# 检查 root
+if [[ $EUID -ne 0 ]]; then
+    echo "请使用 root 用户运行此脚本"
     exit 1
-  }
-done
-
-# ---------- 获取 IP ----------
-IP=$(wget -qO- https://api.ipify.org || echo "YOUR_IP")
-
-# ---------- 下载 Xray ----------
-if [ ! -x "$BIN" ]; then
-  echo "[+] 下载 Xray core..."
-  wget -qO "$BASE/xray.zip" \
-    https://github.com/XTLS/Xray-core/releases/download/v25.12.8/Xray-linux-64.zip
-  unzip -qo "$BASE/xray.zip" -d "$BASE"
-  chmod +x "$BIN"
 fi
 
-# ---------- 初始化配置 ----------
-if [ ! -f "$CONF" ]; then
-  cat >"$CONF" <<EOF
+echo "=== 安装必要依赖 ==="
+apk update
+apk add bash curl tar coreutils lsof
+
+# 安装 Xray
+echo "=== 安装 Xray ==="
+bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)
+
+# 生成 UUID
+VMESS_UUID=$(xray uuid)
+VLESS_UUID=$(xray uuid)
+
+# 随机端口函数
+get_random_port() {
+    while :; do
+        PORT=$((RANDOM % 55535 + 10000))
+        if ! lsof -i:$PORT &>/dev/null; then
+            echo $PORT
+            return
+        fi
+    done
+}
+
+VMESS_PORT=$(get_random_port)
+VLESS_PORT=$(get_random_port)
+
+# 获取服务器公网 IP
+SERVER_IP=$(curl -s ifconfig.me)
+
+CONFIG_PATH="/usr/local/etc/xray/config.json"
+
+echo "=== 生成 Xray 配置 ==="
+cat > $CONFIG_PATH <<EOF
 {
-  "inbounds": [],
-  "outbounds": [
-    { "protocol": "freedom" }
-  ]
-}
-EOF
-fi
-
-uuid() { cat /proc/sys/kernel/random/uuid; }
-
-# ---------- 安全端口生成 ----------
-gen_port() {
-  while :; do
-    PORT=$((RANDOM % 40000 + 10000))
-    ! ss -lnt | grep -q ":$PORT " && {
-      echo "$PORT"
-      return
-    }
-  done
-}
-
-# ---------- Xray 控制 ----------
-start_xray() {
-  if [ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null; then
-    echo "[=] Xray 已运行"
-  else
-    "$BIN" run -config "$CONF" >/dev/null 2>&1 &
-    echo $! > "$PID"
-    echo "[+] Xray 已启动"
-  fi
-}
-
-stop_xray() {
-  [ -f "$PID" ] && kill "$(cat "$PID")" 2>/dev/null || true
-  rm -f "$PID"
-  echo "[+] Xray 已停止"
-}
-
-restart_xray() { stop_xray; sleep 1; start_xray; }
-
-status_xray() {
-  [ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null \
-    && echo "[+] Xray 正在运行" || echo "[-] Xray 未运行"
-}
-
-# ---------- 查看节点 ----------
-view_nodes() {
-  [ -s "$INFO" ] || { echo "暂无节点"; return; }
-  nl -w2 -s'. ' "$INFO"
-}
-
-# ---------- 生成节点 ----------
-generate_node() {
-  VLESS_PORT=$(gen_port)
-  VMESS_PORT=$(gen_port)
-  VLESS_UUID=$(uuid)
-  VMESS_UUID=$(uuid)
-
-  jq ".inbounds += [
+  "log": {
+    "access": "/var/log/xray/access.log",
+    "error": "/var/log/xray/error.log",
+    "loglevel": "warning"
+  },
+  "inbounds": [
     {
-      \"port\": $VLESS_PORT,
-      \"protocol\": \"vless\",
-      \"settings\": {
-        \"clients\": [{\"id\": \"$VLESS_UUID\"}],
-        \"decryption\": \"none\"
+      "port": $VLESS_PORT,
+      "listen": "0.0.0.0",
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "$VLESS_UUID",
+            "flow": "xtls-rprx-direct"
+          }
+        ],
+        "decryption": "none"
       },
-      \"streamSettings\": {
-        \"network\": \"ws\",
-        \"wsSettings\": {\"path\": \"$WS_PATH\"}
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {
+          "path": "/"
+        },
+        "security": "none"
       }
     },
     {
-      \"port\": $VMESS_PORT,
-      \"protocol\": \"vmess\",
-      \"settings\": {
-        \"clients\": [{\"id\": \"$VMESS_UUID\",\"alterId\":0}]
+      "port": $VMESS_PORT,
+      "listen": "0.0.0.0",
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "$VMESS_UUID",
+            "alterId": 0
+          }
+        ]
       },
-      \"streamSettings\": {
-        \"network\": \"ws\",
-        \"wsSettings\": {\"path\": \"$WS_PATH\"}
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {
+          "path": "/"
+        },
+        "security": "none"
       }
     }
-  ]" "$CONF" >"$CONF.tmp" && mv "$CONF.tmp" "$CONF"
-
-  VLESS="vless://$VLESS_UUID@$IP:$VLESS_PORT?type=ws&path=$WS_PATH#VLESS-WS"
-  VMESS_JSON=$(printf '{"v":"2","ps":"VMess-WS","add":"%s","port":"%s","id":"%s","aid":"0","net":"ws","path":"%s"}' \
-    "$IP" "$VMESS_PORT" "$VMESS_UUID" "$WS_PATH")
-  VMESS="vmess://$(echo "$VMESS_JSON" | base64 | tr -d '\n')"
-
-  echo "$VLESS" >>"$INFO"
-  echo "$VMESS" >>"$INFO"
-
-  echo "[+] 节点已生成"
-  echo "$VLESS"
-  echo "$VMESS"
-
-  restart_xray
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {}
+    }
+  ]
 }
+EOF
 
-# ---------- 删除节点 ----------
-delete_node() {
-  view_nodes
-  echo "输入要删除的编号（空格分隔）:"
-  read nums </dev/tty
+# OpenRC 设置 Xray 自启并启动
+echo "=== 设置 Xray 自启并启动 ==="
+rc-update add xray
+rc-service xray restart
 
-  for n in $nums; do
-    LINE=$(sed -n "${n}p" "$INFO")
-    UUID=$(echo "$LINE" | sed -nE 's/.*\/\/([0-9a-f\-]+)@.*/\1/p')
-    jq "del(.inbounds[] | select(.settings.clients[].id==\"$UUID\"))" \
-      "$CONF" >"$CONF.tmp" && mv "$CONF.tmp" "$CONF"
-  done
-
-  TMP=$(mktemp)
-  nl "$INFO" | awk '{print $1}' | grep -vwE "$(echo "$nums" | tr ' ' '|')" |
-  while read i; do sed -n "${i}p" "$INFO"; done >"$TMP"
-  mv "$TMP" "$INFO"
-
-  restart_xray
-  echo "[+] 节点已删除"
+# 生成客户端节点链接
+# VMess 节点
+VMESS_CONFIG=$(cat <<EOF
+{
+  "v": "2",
+  "ps": "VMess-WS",
+  "add": "$SERVER_IP",
+  "port": "$VMESS_PORT",
+  "id": "$VMESS_UUID",
+  "aid": "0",
+  "net": "ws",
+  "type": "none",
+  "host": "",
+  "path": "/",
+  "tls": ""
 }
+EOF
+)
 
-# ---------- 修改节点 ----------
-edit_node() {
-  view_nodes
-  echo "选择编号:"
-  read n </dev/tty
-  LINE=$(sed -n "${n}p" "$INFO") || return
-  UUID=$(echo "$LINE" | sed -nE 's/.*\/\/([0-9a-f\-]+)@.*/\1/p')
+VMESS_LINK=$(echo $VMESS_CONFIG | base64 -w0 | sed 's/$/==/')
+VLESS_LINK="vless://$VLESS_UUID@$SERVER_IP:$VLESS_PORT?type=ws&path=/#VLESS-WS"
 
-  echo "新端口(回车跳过):"
-  read NEW_PORT </dev/tty
-  echo "新 WS 路径(回车跳过):"
-  read NEW_PATH </dev/tty
-
-  jq '
-    (.inbounds[] | select(.settings.clients[].id=="'"$UUID"'") | .port) |= '"${NEW_PORT:-.}"' |
-    (.inbounds[] | select(.settings.clients[].id=="'"$UUID"'") | .streamSettings.wsSettings.path) |= "'"${NEW_PATH:-$WS_PATH}"'"
-  ' "$CONF" >"$CONF.tmp" && mv "$CONF.tmp" "$CONF"
-
-  restart_xray
-  echo "[+] 节点已修改"
-}
-
-# ---------- 卸载 ----------
-uninstall_xray() {
-  stop_xray
-  rm -rf "$BASE"
-  echo "[+] 已卸载 Xray"
-}
-
-# ---------- 菜单 ----------
-menu() {
-  while :; do
-    echo "====== Xray 管理 ======"
-    echo "1) 启动"
-    echo "2) 停止"
-    echo "3) 重启"
-    echo "4) 状态"
-    echo "5) 查看节点"
-    echo "6) 生成节点"
-    echo "7) 删除节点"
-    echo "8) 修改节点"
-    echo "9) 卸载"
-    echo "0) 退出"
-    read c </dev/tty
-    case $c in
-      1) start_xray ;;
-      2) stop_xray ;;
-      3) restart_xray ;;
-      4) status_xray ;;
-      5) view_nodes ;;
-      6) generate_node ;;
-      7) delete_node ;;
-      8) edit_node ;;
-      9) uninstall_xray ;;
-      0) exit ;;
-    esac
-    echo
-  done
-}
-
-[ $# -gt 0 ] && "$1" || menu
+echo -e "\n=== 安装完成 ==="
+echo "服务器 IP/域名: $SERVER_IP"
+echo "VLESS 节点: $VLESS_LINK"
+echo "VMess 节点: vmess://$VMESS_LINK"
+echo "WebSocket 路径: /"
+echo "VLESS 端口: $VLESS_PORT, VMess 端口: $VMESS_PORT"
