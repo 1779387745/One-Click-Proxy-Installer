@@ -1,8 +1,7 @@
 #!/bin/bash
-# 一键安装 Xray VMess/VLESS WS (随机端口，无 TLS)
-# 同时兼容 Alpine 2.0 有 root & 无 root 容器
+# 一键安装 Xray VMess/VLESS WS (随机端口，无 TLS) + sb 管理命令
+# 兼容 Alpine 2.0 有 root & 无 root 容器
 
-# 生成随机端口函数
 get_random_port() {
     while :; do
         PORT=$((RANDOM % 55535 + 10000))
@@ -54,7 +53,7 @@ fi
 VMESS_UUID=$($XRAY_BIN uuid)
 VLESS_UUID=$($XRAY_BIN uuid)
 
-# 生成随机端口
+# 随机端口
 VMESS_PORT=$(get_random_port)
 VLESS_PORT=$(get_random_port)
 
@@ -86,13 +85,13 @@ cat > "$CONFIG_PATH" <<EOF
 }
 EOF
 
-# 启动 Xray
+# 初始启动
 if [ "$IS_ROOT" = true ]; then
     echo "=== 启动 Xray (OpenRC) ==="
     rc-update add xray
     rc-service xray restart
 else
-    echo "=== 非 root 模式，使用用户模式启动 Xray ==="
+    echo "=== 非 root 模式，用户模式启动 Xray ==="
     nohup "$XRAY_BIN" run -config "$CONFIG_PATH" >/dev/null 2>&1 &
 fi
 
@@ -116,7 +115,6 @@ EOF
 )
 VMESS_LINK="vmess://$(echo $VMESS_JSON | base64 -w0)"
 
-# 输出节点信息
 echo -e "\n=== 安装完成 ==="
 echo "服务器 IP/域名: $SERVER_IP"
 echo "VLESS 节点: $VLESS_LINK"
@@ -124,11 +122,70 @@ echo "VMess 节点: $VMESS_LINK"
 echo "WebSocket 路径: /"
 echo "VLESS 端口: $VLESS_PORT, VMess 端口: $VMESS_PORT"
 
-# 显示二维码
 echo -e "\n=== VLESS QR码 ==="
 echo "$VLESS_LINK" | qrencode -t UTF8
-
 echo -e "\n=== VMess QR码 ==="
 echo "$VMESS_LINK" | qrencode -t UTF8
 
-echo -e "\n=== 完成 === 可以直接用客户端扫码导入 ==="
+# 创建快捷管理命令 sb
+if [ "$IS_ROOT" = true ]; then
+    SB_PATH="/usr/local/bin/sb"
+else
+    SB_PATH="$HOME/bin/sb"
+    mkdir -p "$(dirname $SB_PATH)"
+fi
+
+cat > "$SB_PATH" <<'EOF'
+#!/bin/bash
+# sb 小型管理工具
+XRAY_BIN="__XRAY_BIN__"
+CONFIG_PATH="__CONFIG_PATH__"
+
+function start_xray() {
+    if [ "$(id -u)" -eq 0 ]; then
+        rc-service xray restart
+    else
+        nohup "$XRAY_BIN" run -config "$CONFIG_PATH" >/dev/null 2>&1 &
+    fi
+    echo "Xray 已启动"
+}
+
+function stop_xray() {
+    if [ "$(id -u)" -eq 0 ]; then
+        pkill -f "$XRAY_BIN"
+    else
+        pkill -f "$XRAY_BIN"
+    fi
+    echo "Xray 已停止"
+}
+
+function status_xray() {
+    if pgrep -f "$XRAY_BIN" >/dev/null 2>&1; then
+        echo "Xray 正在运行"
+    else
+        echo "Xray 未运行"
+    fi
+}
+
+case "$1" in
+    start) start_xray ;;
+    stop) stop_xray ;;
+    status) status_xray ;;
+    *) echo "用法: sb {start|stop|status}" ;;
+esac
+EOF
+
+# 替换路径
+sed -i "s#__XRAY_BIN__#$XRAY_BIN#g" "$SB_PATH"
+sed -i "s#__CONFIG_PATH__#$CONFIG_PATH#g" "$SB_PATH"
+chmod +x "$SB_PATH"
+
+echo -e "\n快捷管理命令已创建："
+echo "输入 sb start  → 启动 Xray"
+echo "输入 sb stop   → 停止 Xray"
+echo "输入 sb status → 查看 Xray 状态"
+
+if [ "$IS_ROOT" = false ]; then
+    echo "请确保 \$HOME/bin 在 PATH 中，否则 sb 命令不可用"
+    echo "可执行： export PATH=\$HOME/bin:\$PATH"
+fi
