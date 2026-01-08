@@ -1,7 +1,7 @@
 #!/bin/sh
 # =========================================================
-# Xray + Argo Tunnel 终极稳定版（Quick / Named 可选）
-# VLESS + VMess | WS + TLS | Alpine / 非 root
+# 一键运行 Xray + Argo Tunnel 终极脚本（修正版 WS=/）
+# VLESS + VMess | WS=/ | TLS | Alpine / 非 root / 容器可用
 # =========================================================
 
 set -e
@@ -13,36 +13,40 @@ PID="$BASE/xray.pid"
 INFO="$BASE/nodes.txt"
 CF="$BASE/cloudflared"
 ARGO="$BASE/argo"
-WS_PATH="/ws/api/v1"
+WS_PATH="/"  # 统一改成 /
 
-mkdir -p "$BASE"
+mkdir -p "$BASE" "$ARGO"
 touch "$INFO"
 
 # ---------- 依赖 ----------
-for c in jq wget unzip; do
-  command -v "$c" >/dev/null 2>&1 || {
-    echo "[-] 缺少依赖: $c"
+for cmd in jq wget unzip; do
+  command -v "$cmd" >/dev/null 2>&1 || {
+    echo "[-] 缺少依赖: $cmd"
+    echo "    Alpine: apk add jq wget unzip"
     exit 1
   }
 done
 
-# ---------- Xray ----------
+# ---------- 下载 Xray ----------
 if [ ! -x "$BIN" ]; then
+  echo "[+] 下载 Xray core..."
   wget -qO "$BASE/xray.zip" \
     https://github.com/XTLS/Xray-core/releases/download/v25.12.8/Xray-linux-64.zip
   unzip -qo "$BASE/xray.zip" -d "$BASE"
   chmod +x "$BIN"
 fi
 
-# ---------- cloudflared ----------
+# ---------- 下载 cloudflared ----------
 if [ ! -x "$CF" ]; then
+  echo "[+] 下载 cloudflared..."
   wget -qO "$CF" \
     https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
   chmod +x "$CF"
 fi
 
-# ---------- init config ----------
-cat >"$CONF" <<EOF
+# ---------- 初始化 Xray 配置 ----------
+if [ ! -f "$CONF" ]; then
+  cat >"$CONF" <<EOF
 {
   "inbounds": [
     {
@@ -62,6 +66,7 @@ cat >"$CONF" <<EOF
   "outbounds": [{ "protocol": "freedom" }]
 }
 EOF
+fi
 
 uuid() { cat /proc/sys/kernel/random/uuid; }
 
@@ -92,28 +97,31 @@ generate_node() {
     "$DOMAIN" "$VMESS_ID" "$WS_PATH")
   VMESS="vmess://$(echo "$VMESS_JSON" | base64 | tr -d '\n')"
 
-  echo "$VLESS" >>"$INFO"
+  echo "$VLESS" >"$INFO"
   echo "$VMESS" >>"$INFO"
 
-  echo "[+] 节点已生成，可直接连接"
+  echo "[+] 节点生成完成，可直接导入客户端"
   echo "$VLESS"
   echo "$VMESS"
 }
 
-# ---------- Argo ----------
+# ---------- Argo Tunnel ----------
 start_argo() {
+  echo "请选择 Argo Tunnel 类型："
   echo "1) 临时隧道 (Quick Tunnel)"
   echo "2) 固定隧道 (Named Tunnel)"
-  read m </dev/tty
+  read choice </dev/tty
 
-  if [ "$m" = "1" ]; then
-    "$CF" tunnel --url http://127.0.0.1:10000 >"$ARGO.log" 2>&1 &
+  if [ "$choice" = "1" ]; then
+    echo "[+] 启动 Quick Tunnel..."
+    "$CF" tunnel --url http://127.0.0.1:10000 >"$ARGO/log" 2>&1 &
     sleep 5
-    DOMAIN=$(grep -oE 'https://[a-z0-9\-]+\.trycloudflare.com' "$ARGO.log" | head -n1 | sed 's#https://##')
+    DOMAIN=$(grep -oE 'https://[a-z0-9\-]+\.trycloudflare.com' "$ARGO/log" | head -n1 | sed 's#https://##')
     echo "$DOMAIN" >"$ARGO/domain"
   else
+    echo "[+] 启动 Named Tunnel..."
     "$CF" login
-    echo "输入绑定域名:"
+    echo "请输入要绑定的域名:"
     read DOMAIN </dev/tty
     "$CF" tunnel create xray
     cat >"$ARGO/config.yml" <<EOF
@@ -130,12 +138,15 @@ EOF
 }
 
 # ---------- 主流程 ----------
+echo "[+] 启动 Xray..."
 start_xray
+echo "[+] 启动 Argo Tunnel..."
 start_argo
+echo "[+] 生成节点..."
 generate_node
 
 echo
 echo "========================="
 echo "节点已生成并可用"
-echo "WS Path: $WS_PATH"
+echo "WS Path: $WS_PATH (已统一为 /)"
 echo "========================="
