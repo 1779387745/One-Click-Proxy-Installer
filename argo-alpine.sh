@@ -100,11 +100,15 @@ install_tunnel() {
 
   if [ "$MODE" = "1" ]; then
     read -p "Tunnel Token: " TOKEN
-    echo "$TOKEN" > "$TOKEN_FILE"
+    printf "%s" "$TOKEN" > "$TOKEN_FILE"
     EXEC_ARGS="tunnel run --token-file $TOKEN_FILE --config $CONFIG_FILE"
   else
-    echo "粘贴 credentials.json（空行结束）："
-    cat > "$CRED_FILE"
+    info "请逐行粘贴 credentials.json，空行结束"
+    : > "$CRED_FILE"
+    while IFS= read -r line; do
+      [ -z "$line" ] && break
+      printf "%s\n" "$line" >> "$CRED_FILE"
+    done
     EXEC_ARGS="tunnel run --credentials-file $CRED_FILE --config $CONFIG_FILE"
   fi
 
