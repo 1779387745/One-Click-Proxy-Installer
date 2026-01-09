@@ -1,191 +1,104 @@
 #!/bin/bash
-# 一键安装 Xray VMess/VLESS WS (随机端口，无 TLS) + sb 管理命令
-# 兼容 Alpine 2.0 有 root & 无 root 容器
+# Xray 单节点安装脚本（支持 VLESS 或 VMess），适配 Alpine 系统
 
-get_random_port() {
-    while :; do
-        PORT=$((RANDOM % 55535 + 10000))
-        if ! lsof -i:$PORT &>/dev/null 2>/dev/null; then
-            echo $PORT
-            return
-        fi
-    done
-}
-
-# 判断是否 root
-if [[ $EUID -eq 0 ]]; then
-    IS_ROOT=true
-else
-    IS_ROOT=false
+# 检查 root 权限
+if [[ $EUID -ne 0 ]]; then
+    echo "请以 root 用户运行此脚本。"
+    exit 1
 fi
 
-# 安装依赖（有 root 才能 apk 安装）
-if [ "$IS_ROOT" = true ]; then
-    echo "=== 安装必要依赖 ==="
-    apk update
-    apk add bash curl tar coreutils lsof qrencode -y
-else
-    echo "非 root 模式，跳过依赖安装，确保 bash/curl/tar/lsof/qrencode 已存在"
-fi
+# 安装依赖
+echo "正在安装依赖..."
+apk update
+apk add --no-cache bash curl unzip lsof qrencode
 
-# 设置 Xray 路径
-if [ "$IS_ROOT" = true ]; then
-    XRAY_BIN="/usr/local/bin/xray"
-    CONFIG_PATH="/usr/local/etc/xray/config.json"
-else
-    mkdir -p "$HOME/xray"
-    XRAY_BIN="$HOME/xray/xray"
-    CONFIG_PATH="$HOME/xray/config.json"
-fi
+# 定义路径
+XRAY_BIN="/usr/local/bin/xray"
+CONFIG_PATH="/usr/local/etc/xray/config.json"
 
 # 下载 Xray
-if [ ! -f "$XRAY_BIN" ]; then
-    echo "=== 下载 Xray ==="
-    mkdir -p "$(dirname $XRAY_BIN)"
-    curl -L -o /tmp/xray-linux.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
-    unzip -o /tmp/xray-linux.zip -d /tmp/xray_temp
-    mv /tmp/xray_temp/xray "$XRAY_BIN"
-    chmod +x "$XRAY_BIN"
-    rm -rf /tmp/xray_temp /tmp/xray-linux.zip
+echo "正在下载 Xray..."
+mkdir -p /usr/local/etc/xray
+curl -L -o /tmp/xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+unzip -o /tmp/xray.zip -d /usr/local/bin/
+chmod +x $XRAY_BIN
+rm -f /tmp/xray.zip
+
+# 选择节点类型
+echo "请选择节点类型："
+echo "1. VLESS"
+echo "2. VMess"
+read -p "输入选项 (1 或 2): " NODE_TYPE
+
+if [[ "$NODE_TYPE" == "1" ]]; then
+    PROTOCOL="vless"
+    read -p "请输入 VLESS 节点的 UUID（回车生成随机 UUID）: " NODE_UUID
+    NODE_UUID=${NODE_UUID:-$($XRAY_BIN uuid)}
+elif [[ "$NODE_TYPE" == "2" ]]; then
+    PROTOCOL="vmess"
+    read -p "请输入 VMess 节点的 UUID（回车生成随机 UUID）: " NODE_UUID
+    NODE_UUID=${NODE_UUID:-$($XRAY_BIN uuid)}
+else
+    echo "无效选项，退出脚本。"
+    exit 1
 fi
 
-# 生成 UUID
-VMESS_UUID=$($XRAY_BIN uuid)
-VLESS_UUID=$($XRAY_BIN uuid)
+# 配置参数
+read -p "请输入节点使用的端口（回车随机生成）: " NODE_PORT
+NODE_PORT=${NODE_PORT:-$((RANDOM % 55535 + 10000))}
 
-# 随机端口
-VMESS_PORT=$(get_random_port)
-VLESS_PORT=$(get_random_port)
+read -p "请输入 WebSocket 路径（默认 /）: " WS_PATH
+WS_PATH=${WS_PATH:-/}
 
-# 获取服务器公网 IP
-SERVER_IP=$(curl -s ifconfig.me)
-
-# 写入配置文件
-mkdir -p "$(dirname $CONFIG_PATH)"
-cat > "$CONFIG_PATH" <<EOF
+# 配置文件生成
+echo "正在生成 Xray 配置文件..."
+cat > $CONFIG_PATH <<EOF
 {
-  "log": { "access": "/var/log/xray/access.log", "error": "/var/log/xray/error.log", "loglevel": "warning" },
+  "log": { "loglevel": "warning" },
   "inbounds": [
     {
-      "port": $VLESS_PORT,
-      "listen": "0.0.0.0",
-      "protocol": "vless",
-      "settings": { "clients": [ { "id": "$VLESS_UUID", "flow": "xtls-rprx-direct" } ], "decryption": "none" },
-      "streamSettings": { "network": "ws", "wsSettings": { "path": "/" }, "security": "none" }
-    },
-    {
-      "port": $VMESS_PORT,
-      "listen": "0.0.0.0",
-      "protocol": "vmess",
-      "settings": { "clients": [ { "id": "$VMESS_UUID", "alterId": 0 } ] },
-      "streamSettings": { "network": "ws", "wsSettings": { "path": "/" }, "security": "none" }
+      "port": $NODE_PORT,
+      "protocol": "$PROTOCOL",
+      "settings": {
+        "clients": [
+          { "id": "$NODE_UUID" }
+        ]${PROTOCOL:+,"alterId": 0}
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": { "path": "$WS_PATH" }
+      }
     }
   ],
   "outbounds": [ { "protocol": "freedom", "settings": {} } ]
 }
 EOF
 
-# 初始启动
-if [ "$IS_ROOT" = true ]; then
-    echo "=== 启动 Xray (OpenRC) ==="
-    rc-update add xray
-    rc-service xray restart
-else
-    echo "=== 非 root 模式，用户模式启动 Xray ==="
-    nohup "$XRAY_BIN" run -config "$CONFIG_PATH" >/dev/null 2>&1 &
-fi
+# 启动 Xray
+echo "正在启动 Xray..."
+nohup $XRAY_BIN -config $CONFIG_PATH >/dev/null 2>&1 &
 
-# 生成客户端节点
-VLESS_LINK="vless://$VLESS_UUID@$SERVER_IP:$VLESS_PORT?type=ws&path=/#VLESS-WS"
-VMESS_JSON=$(cat <<EOF
+# 输出配置信息
+SERVER_IP=$(curl -s ifconfig.me)
+echo -e "\n========== 节点信息 =========="
+if [[ "$PROTOCOL" == "vless" ]]; then
+    echo "VLESS 节点: vless://$NODE_UUID@$SERVER_IP:$NODE_PORT?type=ws&path=$WS_PATH"
+elif [[ "$PROTOCOL" == "vmess" ]]; then
+    VMESS_JSON=$(cat <<EOF
 {
-  "v":"2",
-  "ps":"VMess-WS",
-  "add":"$SERVER_IP",
-  "port":"$VMESS_PORT",
-  "id":"$VMESS_UUID",
-  "aid":"0",
-  "net":"ws",
-  "type":"none",
-  "host":"",
-  "path":"/",
-  "tls":""
+  "v": "2",
+  "ps": "VMess-WS",
+  "add": "$SERVER_IP",
+  "port": "$NODE_PORT",
+  "id": "$NODE_UUID",
+  "aid": "0",
+  "net": "ws",
+  "type": "none",
+  "path": "$WS_PATH",
+  "tls": ""
 }
 EOF
 )
-VMESS_LINK="vmess://$(echo $VMESS_JSON | base64 -w0)"
-
-echo -e "\n=== 安装完成 ==="
-echo "服务器 IP/域名: $SERVER_IP"
-echo "VLESS 节点: $VLESS_LINK"
-echo "VMess 节点: $VMESS_LINK"
-echo "WebSocket 路径: /"
-echo "VLESS 端口: $VLESS_PORT, VMess 端口: $VMESS_PORT"
-
-echo -e "\n=== VLESS QR码 ==="
-echo "$VLESS_LINK" | qrencode -t UTF8
-echo -e "\n=== VMess QR码 ==="
-echo "$VMESS_LINK" | qrencode -t UTF8
-
-# 创建快捷管理命令 sb
-if [ "$IS_ROOT" = true ]; then
-    SB_PATH="/usr/local/bin/sb"
-else
-    SB_PATH="$HOME/bin/sb"
-    mkdir -p "$(dirname $SB_PATH)"
+    echo "VMess 节点: vmess://$(echo $VMESS_JSON | base64 -w 0)"
 fi
-
-cat > "$SB_PATH" <<'EOF'
-#!/bin/bash
-# sb 小型管理工具
-XRAY_BIN="__XRAY_BIN__"
-CONFIG_PATH="__CONFIG_PATH__"
-
-function start_xray() {
-    if [ "$(id -u)" -eq 0 ]; then
-        rc-service xray restart
-    else
-        nohup "$XRAY_BIN" run -config "$CONFIG_PATH" >/dev/null 2>&1 &
-    fi
-    echo "Xray 已启动"
-}
-
-function stop_xray() {
-    if [ "$(id -u)" -eq 0 ]; then
-        pkill -f "$XRAY_BIN"
-    else
-        pkill -f "$XRAY_BIN"
-    fi
-    echo "Xray 已停止"
-}
-
-function status_xray() {
-    if pgrep -f "$XRAY_BIN" >/dev/null 2>&1; then
-        echo "Xray 正在运行"
-    else
-        echo "Xray 未运行"
-    fi
-}
-
-case "$1" in
-    start) start_xray ;;
-    stop) stop_xray ;;
-    status) status_xray ;;
-    *) echo "用法: sb {start|stop|status}" ;;
-esac
-EOF
-
-# 替换路径
-sed -i "s#__XRAY_BIN__#$XRAY_BIN#g" "$SB_PATH"
-sed -i "s#__CONFIG_PATH__#$CONFIG_PATH#g" "$SB_PATH"
-chmod +x "$SB_PATH"
-
-echo -e "\n快捷管理命令已创建："
-echo "输入 sb start  → 启动 Xray"
-echo "输入 sb stop   → 停止 Xray"
-echo "输入 sb status → 查看 Xray 状态"
-
-if [ "$IS_ROOT" = false ]; then
-    echo "请确保 \$HOME/bin 在 PATH 中，否则 sb 命令不可用"
-    echo "可执行： export PATH=\$HOME/bin:\$PATH"
-fi
+echo "============================="
