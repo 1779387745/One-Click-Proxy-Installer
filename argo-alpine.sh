@@ -209,6 +209,3 @@ echo "配置文件: $CONFIG_FILE"
 echo
 echo "映射："
 echo -e "$MAPPINGS"
-
-
-结合原始代码给我一个你修改后的完整代码，
