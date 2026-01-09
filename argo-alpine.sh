@@ -1,161 +1,214 @@
+#Argo 隧道-alpine能使用
+
+
 #!/bin/sh
 set -eu
-
-CLOUD_BIN="/usr/local/bin/cloudflared"
-SELF_PATH="/usr/local/bin/argo-menu"
-CRED_DIR="/root/.cloudflared"
-CONFIG_FILE="$CRED_DIR/config.yml"
-TOKEN_FILE="$CRED_DIR/token"
-CRED_FILE="$CRED_DIR/credentials.json"
-MAP_DB="$CRED_DIR/map.db"
-NODE_FILE="$CRED_DIR/nodes.txt"
-RC_FILE="/etc/init.d/cloudflared"
 
 die(){ echo "✖ $*" >&2; exit 1; }
 info(){ echo "→ $*"; }
 
-[ "$(id -u)" -eq 0 ] || die "必须 root 运行（Alpine + OpenRC）"
-apk add --no-cache curl wget ca-certificates >/dev/null
+IS_ROOT=false
+[ "$(id -u)" -eq 0 ] && IS_ROOT=true
+
+[ "$IS_ROOT" = true ] || die "Alpine 版必须 root 运行（OpenRC 需要）"
 
 # =========================
-# 安装 argo 快捷方式
+# 依赖
 # =========================
-install_shortcut() {
-  if [ ! -f "$SELF_PATH" ]; then
-    curl -fsSL https://raw.githubusercontent.com/shangguancaiyun/One-Click-Proxy-Installer/main/argo-alpine.sh \
-      -o "$SELF_PATH"
-    chmod +x "$SELF_PATH"
-  fi
-  ln -sf "$SELF_PATH" /usr/local/bin/argo
-}
-install_shortcut
+apk add --no-cache curl wget ca-certificates
 
 # =========================
 # 安装 cloudflared
 # =========================
-install_cloudflared() {
-  command -v cloudflared >/dev/null && return
+if ! command -v cloudflared >/dev/null 2>&1; then
   ARCH=$(uname -m)
   case "$ARCH" in
     x86_64) FILE="cloudflared-linux-amd64" ;;
     aarch64) FILE="cloudflared-linux-arm64" ;;
-    *) die "不支持架构" ;;
+    *) die "不支持架构: $ARCH" ;;
   esac
-  wget -O "$CLOUD_BIN" \
+
+  wget -O /usr/local/bin/cloudflared \
     "https://github.com/cloudflare/cloudflared/releases/latest/download/$FILE"
-  chmod +x "$CLOUD_BIN"
-}
+  chmod +x /usr/local/bin/cloudflared
+fi
+
+CLOUD_BIN="/usr/local/bin/cloudflared"
 
 # =========================
-# 安装 Tunnel
+# 目录
 # =========================
-install_tunnel() {
-  install_cloudflared
-  rm -rf "$CRED_DIR"
-  mkdir -p "$CRED_DIR"
-  chmod 700 "$CRED_DIR"
-  : > "$MAP_DB"
+CRED_DIR="/root/.cloudflared"
+CONFIG_FILE="$CRED_DIR/config.yml"
+TOKEN_FILE="$CRED_DIR/token"
 
-  read -p "配置多少个域名: " NUM
-
-  i=1
-  while [ "$i" -le "$NUM" ]; do
-    read -p "域名: " HOST
-    read -p "本地端口(默认443): " PORT
-    PORT=${PORT:-443}
-
-    echo "1) WS  2) gRPC"
-    read TYPE
-    if [ "$TYPE" = "1" ]; then
-      STREAM="ws"
-      read -p "WS 路径(/): " PATH
-      PATH=${PATH:-/}
-    else
-      STREAM="grpc"
-      read -p "gRPC ServiceName: " PATH
-    fi
-
-    printf "%s,%s,%s,%s\n" "$HOST" "$PORT" "$PATH" "$STREAM" >> "$MAP_DB"
-    i=$((i+1))
-  done
-
-  echo "凭证方式：1) Token  2) credentials.json"
-  read MODE
-
-  if [ "$MODE" = "1" ]; then
-    read -p "Tunnel Token: " TOKEN
-    printf "%s" "$TOKEN" > "$TOKEN_FILE"
-    EXEC_ARGS="tunnel run --token-file $TOKEN_FILE --config $CONFIG_FILE"
-  else
-    : > "$CRED_FILE"
-    while IFS= read -r line; do
-      [ -z "$line" ] && break
-      printf "%s\n" "$line" >> "$CRED_FILE"
-    done
-    EXEC_ARGS="tunnel run --credentials-file $CRED_FILE --config $CONFIG_FILE"
-  fi
-
-  {
-    printf "ingress:\n"
-    while IFS=',' read -r H P _ _; do
-      printf "  - hostname: %s\n    service: http://127.0.0.1:%s\n" "$H" "$P"
-    done < "$MAP_DB"
-    printf "  - service: http_status:404\n"
-  } > "$CONFIG_FILE"
-
-  printf '%s\n' \
-"#!/sbin/openrc-run
-command=\"$CLOUD_BIN\"
-command_args=\"$EXEC_ARGS\"
-command_background=true
-directory=\"$CRED_DIR\"
-pidfile=\"/run/cloudflared.pid\"" > "$RC_FILE"
-
-  chmod +x "$RC_FILE"
-  rc-update add cloudflared default
-  rc-service cloudflared restart
-}
+mkdir -p "$CRED_DIR"
+chmod 700 "$CRED_DIR"
 
 # =========================
-# 生成节点
+# 域名映射
 # =========================
-gen_nodes() {
-  UUID=$(uuidgen 2>/dev/null || date +%s)
-  : > "$NODE_FILE"
-
-  while IFS=',' read -r HOST _ PATH STREAM; do
-    if [ "$STREAM" = "ws" ]; then
-      printf "vless://%s@%s:443?security=tls&type=ws&path=%s#%s-ws\n" \
-        "$UUID" "$HOST" "$PATH" "$HOST" >> "$NODE_FILE"
-    else
-      printf "vless://%s@%s:443?security=tls&type=grpc&serviceName=%s#%s-grpc\n" \
-        "$UUID" "$HOST" "$PATH" "$HOST" >> "$NODE_FILE"
-    fi
-  done < "$MAP_DB"
-}
-
-show_nodes() {
-  sed -n '1,$p' "$NODE_FILE"
-}
-
-uninstall_tunnel() {
-  rc-service cloudflared stop 2>/dev/null || true
-  rc-update del cloudflared default 2>/dev/null || true
-  rm -rf "$CRED_DIR" "$RC_FILE" "$CLOUD_BIN" /usr/local/bin/argo "$SELF_PATH"
-}
-
 while true; do
-  echo "1) 安装 Tunnel"
-  echo "2) 生成节点"
-  echo "3) 查看节点"
-  echo "4) 卸载"
-  echo "0) 退出"
-  read CH
-  case "$CH" in
-    1) install_tunnel ;;
-    2) gen_nodes ;;
-    3) show_nodes ;;
-    4) uninstall_tunnel ;;
-    0) exit 0 ;;
+  printf "需要配置多少个域名->端口？: "
+  read NUM
+  case "$NUM" in
+    ''|*[!0-9]*) ;;
+    *) [ "$NUM" -gt 0 ] && break ;;
   esac
 done
+
+MAPPINGS=""
+
+i=1
+while [ "$i" -le "$NUM" ]; do
+  echo
+  echo "=== 域名 $i ==="
+
+  read -r -p "域名 (Public Hostname): " DOMAIN
+  [ -n "$DOMAIN" ] || die "域名不能为空"
+
+  read -r -p "本地端口 (默认443): " PORT
+  PORT=${PORT:-443}
+
+  echo "传输方式：1) WS  2) gRPC  3) TCP"
+  read -r TYPE
+  TYPE=${TYPE:-1}
+
+  STREAM_TYPE=""
+  WS_PATH="-"
+
+  case "$TYPE" in
+    1)
+      STREAM_TYPE="ws"
+      read -r -p "WebSocket 路径 (默认 /): " WS_PATH
+      WS_PATH=${WS_PATH:-/}
+      ;;
+    2)
+      STREAM_TYPE="grpc"
+      read -r -p "gRPC ServiceName (默认 vmess-grpc): " WS_PATH
+      WS_PATH=${WS_PATH:-vmess-grpc}
+      ;;
+    3)
+      STREAM_TYPE="tcp"
+      WS_PATH="-"
+      ;;
+    *)
+      die "无效选择"
+      ;;
+  esac
+
+  read -r -p "协议 (http/https/tcp，默认 http): " PROTO
+  PROTO=${PROTO:-http}
+  case "$PROTO" in http|https|tcp) ;; *) PROTO="http" ;; esac
+
+  MAPPINGS="${MAPPINGS}${DOMAIN},${PORT},${WS_PATH},${PROTO},${STREAM_TYPE}\n"
+  i=$((i+1))
+done
+
+# =========================
+# 凭证
+# =========================
+echo
+echo "凭证方式：1) Token  2) credentials JSON"
+read -r MODE
+MODE=${MODE:-1}
+
+CREDENTIAL_FILE=""
+
+if [ "$MODE" = "1" ]; then
+  read -r -p "Tunnel Token: " TOKEN
+  printf "%s" "$TOKEN" > "$TOKEN_FILE"
+  chmod 600 "$TOKEN_FILE"
+else
+  echo "粘贴 credentials JSON（空行结束）："
+  JSON=""
+  while IFS= read -r line; do
+    [ -z "$line" ] && break
+    JSON="${JSON}${line}\n"
+  done
+  CREDENTIAL_FILE="$CRED_DIR/credentials.json"
+  printf "%b" "$JSON" > "$CREDENTIAL_FILE"
+  chmod 600 "$CREDENTIAL_FILE"
+fi
+
+# =========================
+# 生成 config.yml
+# =========================
+info "生成 $CONFIG_FILE"
+
+{
+  echo "ingress:"
+  echo -e "$MAPPINGS" | while IFS=',' read -r HOST PORT PATH PROTO STREAM; do
+    [ -z "$HOST" ] && continue
+
+    case "$PROTO" in
+      tcp) SERVICE="tcp://localhost:$PORT" ;;
+      http) SERVICE="http://localhost:$PORT" ;;
+      https) SERVICE="https://localhost:$PORT" ;;
+    esac
+
+    echo "  - hostname: $HOST"
+    echo "    service: $SERVICE"
+    echo "    originRequest:"
+    echo "      noTLSVerify: true"
+    echo "      httpHostHeader: $HOST"
+
+    if [ "$STREAM" = "ws" ] && [ "$PROTO" != "tcp" ]; then
+      echo "      headers:"
+      echo "        Connection: Upgrade"
+      echo "        Upgrade: websocket"
+    fi
+    echo
+  done
+  echo "  - service: http_status:404"
+} > "$CONFIG_FILE"
+
+chmod 600 "$CONFIG_FILE"
+
+# =========================
+# cloudflared 启动命令（新旧兼容）
+# =========================
+EXEC_CMD=""
+
+if [ "$MODE" = "1" ]; then
+  if "$CLOUD_BIN" tunnel run --help 2>&1 | grep -q -- '--token-file'; then
+    EXEC_CMD="$CLOUD_BIN tunnel run --token-file $TOKEN_FILE"
+  else
+    TOKEN_CONTENT=$(tr -d '\r\n' < "$TOKEN_FILE")
+    EXEC_CMD="$CLOUD_BIN tunnel run --token $TOKEN_CONTENT --config $CONFIG_FILE"
+  fi
+else
+  EXEC_CMD="$CLOUD_BIN tunnel run --credentials-file $CREDENTIAL_FILE"
+fi
+
+# =========================
+# OpenRC 服务
+# =========================
+RC_FILE="/etc/init.d/cloudflared"
+
+cat > "$RC_FILE" <<EOF
+#!/sbin/openrc-run
+description="Cloudflare Tunnel"
+command="$CLOUD_BIN"
+command_args="$(echo "$EXEC_CMD" | sed "s|$CLOUD_BIN||")"
+command_background=true
+pidfile="/run/cloudflared.pid"
+directory="$CRED_DIR"
+EOF
+
+chmod +x "$RC_FILE"
+rc-update add cloudflared default
+rc-service cloudflared restart
+
+info "✅ Cloudflared 已在 Alpine 启动"
+
+echo
+echo "配置文件: $CONFIG_FILE"
+[ -f "$TOKEN_FILE" ] && echo "Token: $TOKEN_FILE"
+[ -f "$CREDENTIAL_FILE" ] && echo "Credentials: $CREDENTIAL_FILE"
+echo
+echo "映射："
+echo -e "$MAPPINGS"
+
+
+结合原始代码给我一个你修改后的完整代码，
