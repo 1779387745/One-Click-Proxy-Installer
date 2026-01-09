@@ -1,9 +1,6 @@
 #!/bin/sh
 set -eu
 
-# ==================================================
-# 基本变量
-# ==================================================
 CLOUD_BIN="/usr/local/bin/cloudflared"
 SELF_PATH="/usr/local/bin/argo-menu"
 CRED_DIR="/root/.cloudflared"
@@ -17,18 +14,14 @@ RC_FILE="/etc/init.d/cloudflared"
 die(){ echo "✖ $*" >&2; exit 1; }
 info(){ echo "→ $*"; }
 
-# ==================================================
-# 环境检查
-# ==================================================
 [ "$(id -u)" -eq 0 ] || die "必须 root 运行（Alpine + OpenRC）"
 apk add --no-cache curl wget ca-certificates >/dev/null
 
-# ==================================================
-# 安装 argo 快捷命令
-# ==================================================
+# =========================
+# 安装 argo 快捷方式
+# =========================
 install_shortcut() {
   if [ ! -f "$SELF_PATH" ]; then
-    info "安装 argo 快捷命令"
     curl -fsSL https://raw.githubusercontent.com/shangguancaiyun/One-Click-Proxy-Installer/main/argo-alpine.sh \
       -o "$SELF_PATH"
     chmod +x "$SELF_PATH"
@@ -37,25 +30,25 @@ install_shortcut() {
 }
 install_shortcut
 
-# ==================================================
+# =========================
 # 安装 cloudflared
-# ==================================================
+# =========================
 install_cloudflared() {
   command -v cloudflared >/dev/null && return
   ARCH=$(uname -m)
   case "$ARCH" in
     x86_64) FILE="cloudflared-linux-amd64" ;;
     aarch64) FILE="cloudflared-linux-arm64" ;;
-    *) die "不支持的架构: $ARCH" ;;
+    *) die "不支持架构" ;;
   esac
   wget -O "$CLOUD_BIN" \
     "https://github.com/cloudflare/cloudflared/releases/latest/download/$FILE"
   chmod +x "$CLOUD_BIN"
 }
 
-# ==================================================
-# 安装 / 重建 Tunnel
-# ==================================================
+# =========================
+# 安装 Tunnel
+# =========================
 install_tunnel() {
   install_cloudflared
   rm -rf "$CRED_DIR"
@@ -63,38 +56,29 @@ install_tunnel() {
   chmod 700 "$CRED_DIR"
   : > "$MAP_DB"
 
-  echo
   read -p "配置多少个域名: " NUM
 
   i=1
   while [ "$i" -le "$NUM" ]; do
-    echo
-    echo "=== 域名 $i ==="
-    read -p "域名 (Public Hostname): " HOST
-    read -p "本地端口 (默认443): " PORT
+    read -p "域名: " HOST
+    read -p "本地端口(默认443): " PORT
     PORT=${PORT:-443}
 
-    echo "传输方式：1) WS  2) gRPC"
+    echo "1) WS  2) gRPC"
     read TYPE
-    case "$TYPE" in
-      1)
-        STREAM="ws"
-        read -p "WS 路径 (默认 /): " PATH
-        PATH=${PATH:-/}
-        ;;
-      2)
-        STREAM="grpc"
-        read -p "gRPC ServiceName (默认 vmess-grpc): " PATH
-        PATH=${PATH:-vmess-grpc}
-        ;;
-      *) die "无效选择" ;;
-    esac
+    if [ "$TYPE" = "1" ]; then
+      STREAM="ws"
+      read -p "WS 路径(/): " PATH
+      PATH=${PATH:-/}
+    else
+      STREAM="grpc"
+      read -p "gRPC ServiceName: " PATH
+    fi
 
-    echo "$HOST,$PORT,$PATH,$STREAM" >> "$MAP_DB"
+    printf "%s,%s,%s,%s\n" "$HOST" "$PORT" "$PATH" "$STREAM" >> "$MAP_DB"
     i=$((i+1))
   done
 
-  echo
   echo "凭证方式：1) Token  2) credentials.json"
   read MODE
 
@@ -103,7 +87,6 @@ install_tunnel() {
     printf "%s" "$TOKEN" > "$TOKEN_FILE"
     EXEC_ARGS="tunnel run --token-file $TOKEN_FILE --config $CONFIG_FILE"
   else
-    info "请逐行粘贴 credentials.json，空行结束"
     : > "$CRED_FILE"
     while IFS= read -r line; do
       [ -z "$line" ] && break
@@ -113,98 +96,66 @@ install_tunnel() {
   fi
 
   {
-    echo "ingress:"
+    printf "ingress:\n"
     while IFS=',' read -r H P _ _; do
-      echo "  - hostname: $H"
-      echo "    service: http://127.0.0.1:$P"
+      printf "  - hostname: %s\n    service: http://127.0.0.1:%s\n" "$H" "$P"
     done < "$MAP_DB"
-    echo "  - service: http_status:404"
+    printf "  - service: http_status:404\n"
   } > "$CONFIG_FILE"
 
-  cat > "$RC_FILE" <<EOF
-#!/sbin/openrc-run
-description="Cloudflare Tunnel"
-command="$CLOUD_BIN"
-command_args="$EXEC_ARGS"
+  printf '%s\n' \
+"#!/sbin/openrc-run
+command=\"$CLOUD_BIN\"
+command_args=\"$EXEC_ARGS\"
 command_background=true
-directory="$CRED_DIR"
-pidfile="/run/cloudflared.pid"
-EOF
+directory=\"$CRED_DIR\"
+pidfile=\"/run/cloudflared.pid\"" > "$RC_FILE"
 
   chmod +x "$RC_FILE"
   rc-update add cloudflared default
   rc-service cloudflared restart
-
-  info "✅ Tunnel 已启动"
 }
 
-# ==================================================
+# =========================
 # 生成节点
-# ==================================================
+# =========================
 gen_nodes() {
-  [ -f "$MAP_DB" ] || die "未找到映射信息，请先安装 Tunnel"
-  UUID=$(cat /proc/sys/kernel/random/uuid)
+  UUID=$(uuidgen 2>/dev/null || date +%s)
   : > "$NODE_FILE"
 
-  while IFS=',' read -r HOST PORT PATH STREAM; do
-    case "$STREAM" in
-      ws)
-        VMESS_JSON=$(printf '{"v":"2","ps":"%s-ws","add":"%s","port":"443","id":"%s","aid":"0","net":"ws","type":"none","host":"%s","path":"%s","tls":"tls"}' \
-          "$HOST" "$HOST" "$UUID" "$HOST" "$PATH")
-        echo "vmess://$(echo "$VMESS_JSON" | base64 -w0)" >> "$NODE_FILE"
-
-        echo "vless://$UUID@$HOST:443?encryption=none&security=tls&type=ws&host=$HOST&path=$(echo "$PATH" | sed 's|/|%2F|g')#$HOST-ws" >> "$NODE_FILE"
-        ;;
-      grpc)
-        echo "vless://$UUID@$HOST:443?encryption=none&security=tls&type=grpc&serviceName=$PATH#$HOST-grpc" >> "$NODE_FILE"
-        ;;
-    esac
+  while IFS=',' read -r HOST _ PATH STREAM; do
+    if [ "$STREAM" = "ws" ]; then
+      printf "vless://%s@%s:443?security=tls&type=ws&path=%s#%s-ws\n" \
+        "$UUID" "$HOST" "$PATH" "$HOST" >> "$NODE_FILE"
+    else
+      printf "vless://%s@%s:443?security=tls&type=grpc&serviceName=%s#%s-grpc\n" \
+        "$UUID" "$HOST" "$PATH" "$HOST" >> "$NODE_FILE"
+    fi
   done < "$MAP_DB"
-
-  info "✅ 节点已生成: $NODE_FILE"
 }
 
-# ==================================================
-# 查看节点
-# ==================================================
 show_nodes() {
-  [ -f "$NODE_FILE" ] || die "尚未生成节点"
-  cat "$NODE_FILE"
+  sed -n '1,$p' "$NODE_FILE"
 }
 
-# ==================================================
-# 卸载
-# ==================================================
 uninstall_tunnel() {
   rc-service cloudflared stop 2>/dev/null || true
   rc-update del cloudflared default 2>/dev/null || true
-  rm -f "$RC_FILE"
-  rm -rf "$CRED_DIR"
-  rm -f "$CLOUD_BIN"
-  rm -f /usr/local/bin/argo
-  rm -f "$SELF_PATH"
-  info "✅ Cloudflare Tunnel 已卸载"
+  rm -rf "$CRED_DIR" "$RC_FILE" "$CLOUD_BIN" /usr/local/bin/argo "$SELF_PATH"
 }
 
-# ==================================================
-# 菜单
-# ==================================================
 while true; do
-  echo
-  echo "===== Argo Tunnel (Alpine) ====="
-  echo "1) 安装 / 重建 Tunnel"
-  echo "2) 生成 WS / gRPC 节点"
+  echo "1) 安装 Tunnel"
+  echo "2) 生成节点"
   echo "3) 查看节点"
-  echo "4) 卸载 Tunnel"
+  echo "4) 卸载"
   echo "0) 退出"
-  read -p "请选择: " CHOICE
-
-  case "$CHOICE" in
+  read CH
+  case "$CH" in
     1) install_tunnel ;;
     2) gen_nodes ;;
     3) show_nodes ;;
     4) uninstall_tunnel ;;
     0) exit 0 ;;
-    *) echo "无效选择" ;;
   esac
 done
